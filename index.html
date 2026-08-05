@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BSR小类排名分析看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --primary:#667eea;--primary-dark:#5a6fd6;--primary-light:#8b9cf7;
+  --accent:#764ba2;--success:#43e97b;--danger:#fa709a;--warning:#fee140;--info:#4facfe;
+  --bg:#f5f7fa;--card:#fff;--text:#1a1a2e;--text-secondary:#6b7280;--text-muted:#9ca3af;
+  --border:#e5e7eb;--border-light:#f0f0f0;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);--shadow:0 4px 6px -1px rgba(0,0,0,.07),0 2px 4px -1px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.08),0 4px 6px -2px rgba(0,0,0,.04);
+  --shadow-xl:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
+  --radius-sm:6px;--radius:8px;--radius-lg:12px;--radius-xl:16px;--transition:all .2s ease;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+
+.header{background:linear-gradient(135deg,var(--primary) 0%,var(--accent) 100%);color:#fff;padding:14px 24px;box-shadow:0 4px 12px rgba(107,93,216,.2)}
+.header-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.header h1{font-size:20px;font-weight:700;letter-spacing:-.3px}
+.header p{opacity:.85;margin-top:2px;font-size:12px}
+.header-actions{display:flex;align-items:center;gap:10px}
+.btn-import{padding:8px 16px;border:2px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:600;transition:var(--transition);backdrop-filter:blur(4px)}
+.btn-import:hover{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.6)}
+.import-status{font-size:12px;padding:4px 12px;border-radius:var(--radius);display:none;color:#fff}
+.import-status.success{display:inline-block;background:rgba(67,233,123,.3)}
+.import-status.loading{display:inline-block;background:rgba(255,200,0,.3)}
+
+.main-wrapper{display:flex;height:calc(100vh - 80px);overflow:hidden}
+.content-area{flex:1;min-width:0;width:100%;overflow-y:auto;overflow-x:hidden;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative}
+body.ai-open .content-area{width:calc(100% - 420px);flex:none}
+
+.tab-bar{background:var(--card);display:flex;gap:4px;padding:8px 16px 0;box-shadow:0 2px 8px rgba(107,93,216,.08);position:sticky;top:0;z-index:50;overflow-x:auto}
+.tab-btn{padding:12px 20px;font-size:13px;font-weight:500;color:var(--text-muted);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:var(--transition);white-space:nowrap;flex-shrink:0;border-radius:var(--radius) var(--radius) 0 0}
+.tab-btn:hover{color:var(--primary);background:rgba(102,126,234,.04)}
+.tab-btn.active{color:var(--primary);font-weight:600;border-bottom-color:var(--primary);background:rgba(102,126,234,.06)}
+.tab-page{display:none;padding:20px;width:100%}
+.tab-page.active{display:block}
+
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:20px;width:100%}
+.stat-card{background:var(--card);border-radius:var(--radius-lg);padding:16px 18px;box-shadow:var(--shadow);transition:var(--transition);border:1px solid var(--border-light);position:relative;overflow:hidden}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.stat-card .label{font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.3px}
+.stat-card .value{font-size:26px;font-weight:700;color:var(--primary);margin-top:4px;line-height:1.2}
+.stat-card .sub{font-size:10px;color:var(--text-muted);margin-top:2px}
+.stat-card.green{border-left:4px solid var(--success)}.stat-card.green .value{color:var(--success)}
+.stat-card.pink{border-left:4px solid var(--danger)}.stat-card.pink .value{color:var(--danger)}
+.stat-card.blue{border-left:4px solid var(--info)}.stat-card.blue .value{color:var(--info)}
+.stat-card.yellow{border-left:4px solid var(--warning)}.stat-card.yellow .value{color:#d97706}
+
+.filter-panel{background:var(--card);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:20px;box-shadow:var(--shadow);width:100%;border:1px solid var(--border-light)}
+.filter-panel h3{font-size:13px;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px;font-weight:600}
+.filter-panel h3::before{content:'';width:3px;height:16px;background:linear-gradient(180deg,var(--primary),var(--accent));border-radius:2px}
+.filter-section{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border-light)}
+.filter-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.filter-section-title{font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.filter-row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.filter-row:last-child{margin-bottom:0}
+.filter-group{display:flex;flex-direction:column;gap:4px;min-width:120px}
+.filter-group label{font-size:11px;color:var(--text-secondary);font-weight:500}
+.filter-group select,.filter-group input{padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--bg);outline:none;transition:var(--transition)}
+.filter-group select:hover,.filter-group input:hover{border-color:var(--primary-light);background:rgba(102,126,234,.02)}
+.filter-group select:focus,.filter-group input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.btn-group{display:flex;gap:8px;margin-top:4px}
+.btn{padding:8px 16px;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-weight:500;transition:var(--transition)}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;box-shadow:0 2px 8px rgba(102,126,234,.3)}
+.btn-primary:hover{box-shadow:0 4px 12px rgba(102,126,234,.4);transform:translateY(-1px)}
+.btn-reset{background:#fff;color:var(--text-secondary);border:1px solid var(--border)}
+.btn-reset:hover{background:var(--bg);border-color:var(--primary-light)}
+
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;width:100%}
+.chart-card{background:var(--card);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow);overflow:hidden;min-width:0;border:1px solid var(--border-light);transition:var(--transition)}
+.chart-card:hover{box-shadow:var(--shadow-lg)}
+.chart-card.full{grid-column:1/-1}
+.chart-card h3{font-size:13px;color:var(--text);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;gap:8px;font-weight:600}
+.tag{display:inline-block;font-size:10px;padding:3px 8px;border-radius:var(--radius-sm);font-weight:600}
+.tag-new{background:#dcfce7;color:#166534}
+.tag-success{background:#fce7f3;color:#be185d}
+.tag-blue{background:#dbeafe;color:#1d4ed8}
+.tag-ai{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff}
+.chart-wrap{position:relative;height:300px;width:100%}
+.chart-wrap.tall{height:380px}
+.chart-wrap canvas{width:100%!important;height:100%!important}
+
+.table-card{background:var(--card);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow);margin-bottom:20px;overflow-x:auto;max-width:100%;border:1px solid var(--border-light)}
+.table-card h3{font-size:13px;color:var(--text);margin-bottom:12px;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--bg);padding:10px 12px;text-align:left;font-weight:600;color:var(--text-secondary);border-bottom:2px solid var(--border);white-space:nowrap;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+td{padding:10px 12px;border-bottom:1px solid var(--border-light);color:var(--text)}
+tr:hover td{background:rgba(102,126,234,.02)}
+.badge{display:inline-block;padding:3px 10px;border-radius:var(--radius);font-size:10px;font-weight:600}
+.badge-up{background:#dcfce7;color:#166534}
+.badge-down{background:#fce7f3;color:#be185d}
+.badge-neutral{background:var(--bg);color:var(--text-muted)}
+.badge-new{background:#dcfce7;color:#166534}
+.badge-success{background:#fce7f3;color:#be185d}
+.link-btn{color:var(--primary);text-decoration:none;font-weight:500;transition:var(--transition)}
+.link-btn:hover{text-decoration:underline;color:var(--primary-dark)}
+
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.modal-overlay.active{display:flex}
+.modal{background:var(--card);border-radius:var(--radius-xl);padding:28px;max-width:580px;width:90%;max-height:80vh;overflow-y:auto;position:relative;box-shadow:var(--shadow-xl)}
+.modal h2{font-size:18px;margin-bottom:12px;color:var(--text);font-weight:600}
+.modal p{font-size:12px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6}
+.modal .drop-zone{border:2px dashed var(--border);border-radius:var(--radius-lg);padding:36px;text-align:center;color:var(--text-muted);cursor:pointer;transition:var(--transition);margin-bottom:16px}
+.modal .drop-zone:hover,.modal .drop-zone.dragover{border-color:var(--primary);background:rgba(102,126,234,.03);color:var(--primary)}
+.modal .drop-zone .icon{font-size:40px;margin-bottom:8px}
+.close-btn{position:absolute;top:14px;right:16px;font-size:20px;cursor:pointer;color:var(--text-muted);background:none;border:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.close-btn:hover{background:var(--bg);color:var(--text)}
+.column-map{width:100%;border-collapse:collapse;font-size:11px;margin:12px 0}
+.column-map th{background:var(--bg);padding:8px;text-align:left;font-weight:600;color:var(--text-secondary)}
+.column-map td{padding:6px 8px;border-bottom:1px solid var(--border-light)}
+.column-map select{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:11px;background:#fff}
+.btn-confirm{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;padding:12px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;width:100%;box-shadow:0 2px 8px rgba(102,126,234,.3);transition:var(--transition)}
+.btn-confirm:hover{box-shadow:0 4px 12px rgba(102,126,234,.4);transform:translateY(-1px)}
+.btn-confirm:disabled{background:var(--border);cursor:not-allowed;box-shadow:none;transform:none}
+
+/* AI Panel */
+.ai-panel{width:0;background:var(--card);box-shadow:-4px 0 20px rgba(0,0,0,.08);display:flex;flex-direction:column;overflow:hidden;transition:width .3s cubic-bezier(.4,0,.2,1);flex-shrink:0;border-left:1px solid var(--border-light)}
+.ai-panel.open{width:420px}
+.ai-panel-header{background:linear-gradient(135deg,var(--primary) 0%,var(--accent) 100%);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;min-width:420px}
+.ai-panel-header h2{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.ai-panel-header h2::before{content:'🤖';font-size:18px}
+.ai-panel-header-actions{display:flex;gap:8px}
+.ai-panel-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 10px;border-radius:var(--radius);cursor:pointer;font-size:11px;transition:var(--transition);backdrop-filter:blur(4px)}
+.ai-panel-btn:hover{background:rgba(255,255,255,.35)}
+.ai-panel-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
+.ai-panel-close:hover{background:rgba(255,255,255,.35)}
+.ai-settings{padding:14px 16px;background:linear-gradient(180deg,rgba(102,126,234,.04),rgba(255,255,255,0));border-bottom:1px solid var(--border-light);display:none;min-width:420px}
+.ai-settings.open{display:block}
+.ai-settings-content{margin-top:10px}
+.ai-settings-row{display:flex;gap:8px;margin-bottom:8px;align-items:flex-end}
+.ai-settings-group{flex:1;display:flex;flex-direction:column;gap:4px}
+.ai-settings-group label{font-size:11px;color:var(--text-secondary);font-weight:500}
+.ai-settings-group input,.ai-settings-group select{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;outline:none;transition:var(--transition);background:#fff}
+.ai-settings-group input:focus,.ai-settings-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.ai-settings-group input{font-family:'SF Mono',Monaco,Consolas,monospace}
+.ai-settings-save{padding:8px 14px;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;border:none;border-radius:var(--radius);font-size:12px;cursor:pointer;font-weight:600;transition:var(--transition);box-shadow:0 2px 6px rgba(102,126,234,.25)}
+.ai-settings-save:hover{box-shadow:0 4px 10px rgba(102,126,234,.35);transform:translateY(-1px)}
+.ai-settings-save:active{transform:scale(.98)}
+.ai-settings-status{font-size:11px;padding:8px 12px;border-radius:var(--radius);margin-top:8px;display:none;align-items:center;gap:6px}
+.ai-settings-status.success{display:flex;background:#dcfce7;color:#166534}
+.ai-settings-status.error{display:flex;background:#fce7f3;color:#be185d}
+
+.ai-chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:420px;background:var(--bg)}
+.ai-chat::-webkit-scrollbar{width:6px}
+.ai-chat::-webkit-scrollbar-track{background:transparent}
+.ai-chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.ai-msg{max-width:88%;padding:12px 16px;border-radius:var(--radius-lg);font-size:13px;line-height:1.6;word-wrap:break-word;box-shadow:var(--shadow-sm)}
+.ai-msg.user{align-self:flex-end;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;border-bottom-right-radius:var(--radius-sm)}
+.ai-msg.assistant{align-self:flex-start;background:#fff;border:1px solid var(--border-light);border-bottom-left-radius:var(--radius-sm);box-shadow:var(--shadow)}
+.ai-msg.system{align-self:center;background:rgba(102,126,234,.08);color:var(--primary);font-size:12px;padding:8px 16px;border-radius:20px;border:1px solid rgba(102,126,234,.15)}
+.ai-msg pre{background:var(--text);color:#e8e8e8;padding:12px;border-radius:var(--radius);overflow-x:auto;font-size:12px;margin:8px 0;font-family:'SF Mono',Monaco,Consolas,monospace}
+.ai-msg code{background:rgba(102,126,234,.1);color:var(--primary);padding:2px 6px;border-radius:var(--radius-sm);font-size:12px;font-family:'SF Mono',Monaco,Consolas,monospace}
+.ai-msg pre code{background:none;color:inherit;padding:0}
+.ai-msg ul,.ai-msg ol{margin:8px 0;padding-left:20px}
+.ai-msg li{margin-bottom:4px}
+.ai-msg p{margin-bottom:6px}.ai-msg p:last-child{margin-bottom:0}
+.ai-typing{align-self:flex-start;padding:12px 16px;background:#fff;border:1px solid var(--border-light);border-radius:var(--radius-lg);border-bottom-left-radius:var(--radius-sm);display:flex;gap:5px;box-shadow:var(--shadow)}
+.ai-typing span{width:6px;height:6px;background:var(--primary);border-radius:50%;animation:typing 1.4s infinite ease-in-out}
+.ai-typing span:nth-child(2){animation-delay:0.2s}
+.ai-typing span:nth-child(3){animation-delay:0.4s}
+@keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.6}30%{transform:translateY(-6px);opacity:1}}
+
+.ai-chat-input{padding:14px 16px;border-top:1px solid var(--border-light);background:#fff;min-width:420px}
+.ai-chat-input-row{display:flex;gap:8px;align-items:flex-end}
+.ai-chat-textarea{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-lg);font-size:13px;font-family:inherit;resize:none;outline:none;min-height:42px;max-height:120px;line-height:1.5;transition:var(--transition);background:var(--bg)}
+.ai-chat-textarea:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.ai-chat-textarea::placeholder{color:var(--text-muted)}
+.ai-chat-send{padding:10px 18px;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;border:none;border-radius:var(--radius-lg);cursor:pointer;font-size:13px;font-weight:600;transition:var(--transition);white-space:nowrap;box-shadow:0 2px 8px rgba(102,126,234,.3)}
+.ai-chat-send:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,.4)}
+.ai-chat-send:active{transform:scale(.97)}
+.ai-chat-send:disabled{background:var(--border);cursor:not-allowed;transform:none;box-shadow:none}
+.ai-chat-hints{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.ai-chat-hint{padding:6px 12px;background:#fff;border:1px solid var(--border-light);border-radius:20px;font-size:11px;color:var(--primary);cursor:pointer;transition:var(--transition);font-weight:500}
+.ai-chat-hint:hover{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 2px 8px rgba(102,126,234,.3)}
+
+.ai-toggle-btn{padding:8px 16px;border:2px solid rgba(255,255,255,.5);background:rgba(255,255,255,.1);color:#fff;border-radius:var(--radius);cursor:pointer;font-size:12px;font-weight:600;transition:var(--transition);display:flex;align-items:center;gap:6px;backdrop-filter:blur(4px)}
+.ai-toggle-btn:hover{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.7)}
+.ai-toggle-btn.active{background:rgba(255,255,255,.35);border-color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+
+/* Export & Sync */
+.export-dropdown{position:relative;display:inline-block}
+.export-menu{display:none;position:absolute;top:100%;right:0;background:var(--card);border-radius:var(--radius-lg);box-shadow:var(--shadow-xl);min-width:180px;z-index:200;padding:6px;border:1px solid var(--border-light);margin-top:4px}
+.export-menu.show{display:block}
+.export-menu-item{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:12px;color:var(--text);cursor:pointer;border-radius:var(--radius);transition:var(--transition);font-weight:500}
+.export-menu-item:hover{background:rgba(102,126,234,.08);color:var(--primary)}
+.export-menu-item .icon{font-size:15px}
+
+/* Sync Modal */
+.nf-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px)}
+.nf-overlay.active{display:flex}
+.nf-modal{background:var(--card);border-radius:var(--radius-xl);padding:28px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;position:relative;box-shadow:var(--shadow-xl)}
+.nf-modal h2{font-size:17px;margin-bottom:6px;color:var(--text);font-weight:600}
+.nf-modal p{font-size:12px;color:var(--text-secondary);margin-bottom:14px;line-height:1.6}
+.nf-modal .close-btn{position:absolute;top:14px;right:16px}
+.nf-input-group{margin-bottom:12px}
+.nf-input-group label{display:block;font-size:11px;color:var(--text-secondary);font-weight:500;margin-bottom:4px}
+.nf-input-group input,.nf-input-group select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;outline:none;transition:var(--transition);background:var(--bg);box-sizing:border-box}
+.nf-input-group input:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(102,126,234,.1)}
+.nf-input-group input[type=password]{font-family:'SF Mono',Monaco,Consolas,monospace}
+.nf-btn{width:100%;padding:12px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:var(--transition);margin-top:4px}
+.nf-btn.primary{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;box-shadow:0 2px 8px rgba(102,126,234,.3)}
+.nf-btn.primary:hover{box-shadow:0 4px 12px rgba(102,126,234,.4);transform:translateY(-1px)}
+.nf-btn.primary:disabled{background:var(--border);cursor:not-allowed;box-shadow:none;transform:none}
+.nf-btn.secondary{background:var(--bg);color:var(--text-secondary);border:1px solid var(--border)}
+.nf-btn.secondary:hover{border-color:var(--primary-light)}
+.nf-status{font-size:12px;padding:10px 14px;border-radius:var(--radius);margin-top:10px;display:none;align-items:center;gap:6px}
+.nf-status.show{display:flex}
+.nf-status.success{background:#dcfce7;color:#166534}
+.nf-status.error{background:#fce7f3;color:#be185d}
+.nf-progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:8px}
+.nf-progress-bar{height:100%;background:linear-gradient(90deg,var(--primary),var(--success));border-radius:2px;width:0;transition:width .3s}
+
+/* AI Insight */
+.insight-layout{display:flex;gap:16px;min-height:500px}
+.insight-sidebar{width:220px;flex-shrink:0;background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border-light);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.insight-sidebar-title{font-size:12px;font-weight:700;color:var(--text);padding:14px 16px 10px;border-bottom:1px solid var(--border-light);text-transform:uppercase;letter-spacing:.5px}
+.insight-menu-item{display:flex;align-items:center;gap:8px;padding:10px 16px;font-size:12px;color:var(--text-muted);cursor:pointer;transition:var(--transition);border-left:3px solid transparent}
+.insight-menu-item:hover{background:rgba(102,126,234,.04);color:var(--text)}
+.insight-menu-item.active{color:var(--primary);font-weight:600;border-left-color:var(--primary);background:rgba(102,126,234,.06)}
+.insight-menu-item.done{color:var(--success)}
+.insight-menu-item.running{color:var(--warning)}
+.insight-menu-icon{width:16px;text-align:center;flex-shrink:0;font-size:11px}
+.insight-progress{padding:12px 16px;border-top:1px solid var(--border-light);margin-top:auto}
+.insight-progress-text{font-size:10px;color:var(--text-muted);margin-bottom:6px}
+.insight-progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.insight-progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--success));border-radius:2px;width:0;transition:width .5s}
+.insight-content{flex:1;min-width:0;background:var(--card);border-radius:var(--radius-lg);border:1px solid var(--border-light);box-shadow:var(--shadow);overflow-y:auto;max-height:70vh}
+.insight-section{padding:20px 24px;border-bottom:1px solid var(--border-light)}
+.insight-section:last-child{border-bottom:none}
+.insight-section h2{font-size:15px;color:var(--primary);margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.insight-section h3{font-size:13px;color:var(--text);margin:12px 0 6px}
+.insight-section ul,.insight-section ol{padding-left:18px;margin:6px 0}
+.insight-section li{margin-bottom:4px;font-size:12px;line-height:1.7}
+.insight-section p{font-size:12px;line-height:1.7;margin:6px 0}
+.insight-section strong{color:var(--primary-dark)}
+.insight-section .metric{display:inline-block;background:rgba(102,126,234,.08);padding:1px 6px;border-radius:4px;font-weight:600;color:var(--primary);font-size:11px;margin:0 2px}
+.insight-loading{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.insight-loading .spinner{display:inline-block;width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Heatmap */
+.heatmap-grid{display:grid;gap:2px;margin-top:10px}
+.heatmap-cell{padding:6px;text-align:center;font-size:10px;font-weight:600;border-radius:3px;cursor:default;transition:var(--transition)}
+.heatmap-cell:hover{transform:scale(1.05);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.heatmap-label{font-size:10px;color:var(--text-muted);font-weight:600;text-align:center;padding:4px}
+
+.table-filter-row{background:#f8f9fb}
+.table-filter-row th{padding:4px 6px!important;font-weight:400!important}
+.table-filter-row select{width:100%;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:10px;background:#fff;color:var(--text-secondary);cursor:pointer;outline:none;max-width:100%}
+.table-filter-row select:focus{border-color:var(--primary)}
+
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.filter-row{flex-direction:column}.filter-group{min-width:100%}.tab-btn{padding:10px 14px;font-size:12px}}
+.footer{text-align:center;padding:20px;color:var(--text-muted);font-size:11px}
+
+/* Overview KPI Cards */
+.overview-kpi-card{background:var(--card);border-radius:var(--radius-lg);padding:14px 16px;box-shadow:var(--shadow);border:1px solid var(--border-light);transition:var(--transition);overflow:hidden}
+.overview-kpi-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.overview-kpi-label{font-size:11px;color:var(--text-muted);font-weight:500;margin-bottom:4px}
+.overview-kpi-value{font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px}
+.overview-kpi-card canvas{width:100%!important;height:40px!important}
+.overview-subtab{display:none}.overview-subtab.active{display:block}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>BSR小类排名分析看板</h1>
+      <p id="headerDesc">支持导入xlsx文件 · BSR排名分析 · 多月份榜单对比 · AI智能洞察</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="display:flex;gap:6px">
+        <button class="btn-import" onclick="openImportModal()">📂 导入数据</button>
+        <button class="btn-import" onclick="openSyncModal()">🔄 数据同步</button>
+      </div>
+      <div class="export-dropdown">
+        <button class="btn-import" onclick="toggleExportMenu()">📤 导出</button>
+        <div class="export-menu" id="exportMenu">
+          <div class="export-menu-item" onclick="exportExcel()"><span class="icon">📊</span> 导出Excel (.xlsx)</div>
+          <div class="export-menu-item" onclick="exportPDF()"><span class="icon">📄</span> 导出PDF (打印)</div>
+          <div class="export-menu-item" onclick="exportChartImage()"><span class="icon">🖼️</span> 导出当前图表 (PNG)</div>
+        </div>
+      </div>
+      <button class="ai-toggle-btn" id="aiToggleBtn" onclick="toggleAIPanel()">🤖 AI助手</button>
+      <span class="import-status" id="importStatus"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Data Sync Modal -->
+<div class="nf-overlay" id="syncModal">
+  <div class="nf-modal" style="max-width:520px">
+    <button class="close-btn" onclick="closeSyncModal()">×</button>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:28px;margin-bottom:6px">⚙️</div>
+      <h2 style="margin:0 0 4px;font-size:18px;font-weight:700">数据同步方案</h2>
+      <p style="margin:0;font-size:13px;color:var(--text-muted)">选择适合你的同步方式</p>
+    </div>
+    <div style="background:linear-gradient(135deg,rgba(67,233,123,.06),rgba(79,172,254,.06));border:1px solid rgba(67,233,123,.15);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:18px">📁</span>
+        <span style="font-size:14px;font-weight:700;color:var(--text)">方案一：文件共享（推荐）</span>
+        <span style="background:var(--success);color:#fff;font-size:9px;padding:2px 8px;border-radius:10px;font-weight:700">推荐</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px">最简单的方式，无需注册任何服务</p>
+      <div style="display:flex;gap:10px">
+        <button class="nf-btn secondary" onclick="exportSyncExcel()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px">📤 导出数据</button>
+        <button class="nf-btn secondary" onclick="importSyncData()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px">📥 导入数据</button>
+      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,rgba(102,126,234,.06),rgba(118,75,162,.06));border:1px solid rgba(102,126,234,.15);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:18px">🐙</span>
+        <span style="font-size:14px;font-weight:700;color:var(--text)">方案二：GitHub Gist（在线同步）</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px">免费、稳定、支持多人实时协作</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label style="font-size:11px;color:var(--text-secondary);font-weight:500;display:block;margin-bottom:4px">GitHub Token</label>
+          <input type="password" id="syncToken" placeholder="github_pat_xxxxxxxxxxxx" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;outline:none;box-sizing:border-box;font-family:'SF Mono',Monaco,Consolas,monospace;background:var(--bg)">
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text-secondary);font-weight:500;display:block;margin-bottom:4px">Gist ID（首次留空）</label>
+          <input type="text" id="syncGistId" placeholder="留空自动生成" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;outline:none;box-sizing:border-box;font-family:'SF Mono',Monaco,Consolas,monospace;background:var(--bg)">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="nf-btn secondary" onclick="saveSyncConfig()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px">💾 保存</button>
+      <button class="nf-btn secondary" onclick="testSyncConnection()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px">🔧 测试</button>
+      <button class="nf-btn primary" onclick="pushSyncData()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px">☁️ 推送</button>
+      <button class="nf-btn secondary" onclick="pullSyncData()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px">⬇️ 拉取</button>
+    </div>
+    <div class="nf-progress" id="syncProgress" style="display:none;margin-top:10px"><div class="nf-progress-bar" id="syncProgressBar"></div></div>
+    <div class="nf-status" id="syncStatus"></div>
+  </div>
+</div>
+
+<!-- Main Layout -->
+<div class="main-wrapper">
+<div class="content-area" id="contentArea">
+
+<!-- Tab Bar -->
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="overview">BSR总览</button>
+  <button class="tab-btn" data-tab="compare">月度对比</button>
+  <button class="tab-btn" data-tab="change">排名变化</button>
+  <button class="tab-btn" data-tab="competition">竞争格局</button>
+  <button class="tab-btn" data-tab="attribute">属性×排名</button>
+  <button class="tab-btn" data-tab="detail">BSR明细</button>
+  <button class="tab-btn" data-tab="aiinsight">AI洞察</button>
+</div>
+
+<!-- ==================== TAB 1: BSR总览 ==================== -->
+<div class="tab-page active" id="page-overview">
+  <!-- Sub-tab navigation like the reference -->
+  <div style="display:flex;gap:4px;padding:8px 0;margin-bottom:12px;border-bottom:1px solid var(--border-light);overflow-x:auto">
+    <button class="tab-btn active" data-subtab="market" onclick="switchOverviewSubTab('market',this)">市场概况</button>
+    <button class="tab-btn" data-subtab="concentration" onclick="switchOverviewSubTab('concentration',this)">商品集中度</button>
+    <button class="tab-btn" data-subtab="brand" onclick="switchOverviewSubTab('brand',this)">品牌集中度</button>
+    <button class="tab-btn" data-subtab="price" onclick="switchOverviewSubTab('price',this)">价格分布</button>
+    <button class="tab-btn" data-subtab="listing" onclick="switchOverviewSubTab('listing',this)">上架时间</button>
+    <button class="tab-btn" data-subtab="rating" onclick="switchOverviewSubTab('rating',this)">评分分布</button>
+  </div>
+
+  <div class="filter-panel">
+    <div class="filter-row">
+      <div class="filter-group"><label>数据月份</label><select id="fMonth"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>小类</label><select id="fSubCategory"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>品牌</label><select id="fBrand"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>头部范围</label><select id="fTopN" onchange="applyFilters()"><option value="10">前10</option><option value="20">前20</option><option value="30">前30</option><option value="50">前50</option><option value="100" selected>前100</option></select></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyFilters()">应用</button>
+        <button class="btn btn-reset" onclick="resetOverviewFilters()">重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub-tab: 市场概况 -->
+  <div class="overview-subtab active" id="subtab-market">
+    <!-- KPI Grid -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px">
+      <div class="overview-kpi-card" id="kpiTotalSales">
+        <div class="overview-kpi-label">总销量</div>
+        <div class="overview-kpi-value" id="kpiTotalSalesVal">-</div>
+        <canvas id="kpiSparkSales" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiTotalProducts">
+        <div class="overview-kpi-label">TOP100产品数</div>
+        <div class="overview-kpi-value" id="kpiTotalProductsVal">-</div>
+        <canvas id="kpiSparkProducts" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiBrandCount">
+        <div class="overview-kpi-label">品牌数</div>
+        <div class="overview-kpi-value" id="kpiBrandCountVal">-</div>
+        <canvas id="kpiSparkBrands" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiAvgPrice">
+        <div class="overview-kpi-label">平均价格</div>
+        <div class="overview-kpi-value" id="kpiAvgPriceVal">-</div>
+        <canvas id="kpiSparkPrice" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiAvgRating">
+        <div class="overview-kpi-label">平均评分</div>
+        <div class="overview-kpi-value" id="kpiAvgRatingVal">-</div>
+        <canvas id="kpiSparkRating" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiNewEntry" onclick="showRankingDetail('entry')" style="cursor:pointer">
+        <div class="overview-kpi-label">新入榜数</div>
+        <div class="overview-kpi-value" id="kpiNewEntryVal">-</div>
+        <canvas id="kpiSparkEntry" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiDropOut" onclick="showRankingDetail('dropout')" style="cursor:pointer">
+        <div class="overview-kpi-label">跌出榜数</div>
+        <div class="overview-kpi-value" id="kpiDropOutVal">-</div>
+        <canvas id="kpiSparkDrop" height="40"></canvas>
+      </div>
+      <div class="overview-kpi-card" id="kpiRetainRate" onclick="showRankingDetail('retain')" style="cursor:pointer">
+        <div class="overview-kpi-label">榜单留存率</div>
+        <div class="overview-kpi-value" id="kpiRetainRateVal">-</div>
+        <canvas id="kpiSparkRetain" height="40"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub-tab: 商品集中度 -->
+  <div class="overview-subtab" id="subtab-concentration">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius);font-size:12px">
+      <div><span style="color:var(--text-muted)">商品集中度：</span><strong id="concTop1Pct">-</strong></div>
+      <div><span style="color:var(--text-muted)">平均月销量：</span><strong id="concAvgSales">-</strong></div>
+      <div><span style="color:var(--text-muted)">新品占比：</span><strong id="concNewPct">-</strong></div>
+      <div><span style="color:var(--text-muted)">新品销量占比：</span><strong id="concNewSalesPct">-</strong></div>
+    </div>
+    <div class="chart-card full">
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600">销量分布</span>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartConcentration"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Sub-tab: 品牌集中度 -->
+  <div class="overview-subtab" id="subtab-brand">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius);font-size:12px">
+      <div><span style="color:var(--text-muted)">品牌数：</span><strong id="brandTotalCount">-</strong></div>
+      <div><span style="color:var(--text-muted)">品牌集中度(CR5)：</span><strong id="brandCR5">-</strong></div>
+      <div><span style="color:var(--text-muted)">头部品牌新品占比：</span><strong id="brandNewPct">-</strong></div>
+      <div><span style="color:var(--text-muted)">TOP1品牌销量占比：</span><strong id="brandTop1Pct">-</strong></div>
+    </div>
+    <div class="chart-card full">
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600">销量分布</span>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartBrandConcentration"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Sub-tab: 价格分布 -->
+  <div class="overview-subtab" id="subtab-price">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius);font-size:12px">
+      <div><span style="color:var(--text-muted)">平均价格：</span><strong id="priceAvgVal">-</strong></div>
+      <div><span style="color:var(--text-muted)">最高价格：</span><strong id="priceMaxVal">-</strong></div>
+      <div><span style="color:var(--text-muted)">最低价格：</span><strong id="priceMinVal">-</strong></div>
+      <div><span style="color:var(--text-muted)">价格中位数：</span><strong id="priceMedianVal">-</strong></div>
+    </div>
+    <div class="chart-card full">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600">价格分布</span>
+        <span style="font-size:11px;color:var(--text-muted)">跨度：</span>
+        <select id="fPriceStep" onchange="applyFilters()" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px"><option value="1">$1</option><option value="2" selected>$2</option><option value="3">$3</option><option value="5">$5</option><option value="10">$10</option></select>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartPriceDistribution"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Sub-tab: 上架时间 -->
+  <div class="overview-subtab" id="subtab-listing">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius);font-size:12px">
+      <div><span style="color:var(--text-muted)">平均上架天数：</span><strong id="listingAvgDays">-</strong></div>
+      <div><span style="color:var(--text-muted)">平均上架时间：</span><strong id="listingAvgTime">-</strong></div>
+      <div><span style="color:var(--text-muted)">产品数量：</span><strong id="listingCount">-</strong></div>
+      <div><span style="color:var(--text-muted)">销量占比：</span><strong id="listingSalesPct">-</strong></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-wrap tall"><canvas id="chartListingTime"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Sub-tab: 评分分布 -->
+  <div class="overview-subtab" id="subtab-rating">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--radius);font-size:12px">
+      <div><span style="color:var(--text-muted)">平均评分：</span><strong id="ratingAvgVal">-</strong></div>
+      <div><span style="color:var(--text-muted)">平均评论数：</span><strong id="ratingAvgReviews">-</strong></div>
+      <div><span style="color:var(--text-muted)">4.5分以上占比：</span><strong id="ratingHighPct">-</strong></div>
+      <div><span style="color:var(--text-muted)">1000+评论占比：</span><strong id="ratingReviewsPct">-</strong></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-wrap tall"><canvas id="chartRatingDistribution"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Table: 各小类TOP10 -->
+  <div class="table-card" style="margin-top:16px">
+    <h3>各小类TOP10榜单</h3>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>排名</th><th>ASIN</th><th>品牌</th><th>小类</th><th>价格</th><th>评分</th><th>评论数</th><th>月销量</th><th>上架日期</th><th>链接</th>
+    </tr></thead><tbody id="overviewTop10Body"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ==================== TAB 2: 月度对比 ==================== -->
+<div class="tab-page" id="page-compare">
+  <div class="filter-panel">
+    <h3>月度对比筛选</h3>
+    <div class="filter-row">
+      <div class="filter-group" style="min-width:200px"><label>基准月份</label><select id="fBaseMonth"><option value="">选择</option></select></div>
+      <div class="filter-group" style="min-width:200px"><label>对比月份</label><select id="fCompareMonth"><option value="">选择</option></select></div>
+      <div class="filter-group"><label>小类</label><select id="fCompareSubCat"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>品牌</label><select id="fCompareBrand"><option value="">全部</option></select></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyCompareFilters()">对比</button>
+        <button class="btn btn-reset" onclick="resetCompareFilters()">重置</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats-bar" id="compareStats">
+    <div class="stat-card"><div class="label">基准月产品数</div><div class="value" id="cmpBaseCount">-</div></div>
+    <div class="stat-card"><div class="label">对比月产品数</div><div class="value" id="cmpCompareCount">-</div></div>
+    <div class="stat-card green"><div class="label">两月留存数</div><div class="value" id="cmpRetainCount">-</div></div>
+    <div class="stat-card blue"><div class="label">留存率</div><div class="value" id="cmpRetainRate">-</div></div>
+    <div class="stat-card green"><div class="label">新入榜数</div><div class="value" id="cmpNewEntry">-</div></div>
+    <div class="stat-card pink"><div class="label">跌出榜数</div><div class="value" id="cmpDropOut">-</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card full"><h3>榜单留存率趋势 <span class="tag tag-blue">核心指标</span></h3><p style="font-size:11px;color:#999;margin:0 0 8px">连续月份TOP100留存率变化</p><div class="chart-wrap tall"><canvas id="chartRetainTrend"></canvas></div></div>
+    <div class="chart-card"><h3>新入榜 vs 跌出榜</h3><p style="font-size:11px;color:#999;margin:0 0 8px">每月新进入TOP100数量、跌出TOP100数量</p><div class="chart-wrap"><canvas id="chartEntryDrop"></canvas></div></div>
+    <div class="chart-card"><h3>品牌上榜数量趋势</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各品牌每月上榜产品数量变化</p><div class="chart-wrap"><canvas id="chartBrandTrend"></canvas></div></div>
+    <div class="chart-card full"><h3>价格分布变化</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各月份TOP100的价格带分布对比</p><div class="chart-wrap"><canvas id="chartPriceChange"></canvas></div></div>
+    <div class="chart-card full"><h3>平均排名变化趋势</h3><p style="font-size:11px;color:#999;margin:0 0 8px">连续在榜产品的平均排名变化</p><div class="chart-wrap tall"><canvas id="chartAvgRankTrend"></canvas></div></div>
+    <div class="chart-card full">
+      <h3>排名流动热力图 <span class="tag tag-blue">上月→本月</span></h3>
+      <p style="font-size:11px;color:#999;margin:0 0 8px">上月排名区间→本月排名区间的产品流动数量</p>
+      <div id="heatmapContainer" style="overflow-x:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TAB 3: 排名变化分析 ==================== -->
+<div class="tab-page" id="page-change">
+  <div class="filter-panel">
+    <h3>排名变化筛选</h3>
+    <div class="filter-row">
+      <div class="filter-group" style="min-width:200px"><label>基准月份</label><select id="fChgBaseMonth"><option value="">选择</option></select></div>
+      <div class="filter-group" style="min-width:200px"><label>对比月份</label><select id="fChgCompareMonth"><option value="">选择</option></select></div>
+      <div class="filter-group"><label>小类</label><select id="fChgSubCat"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>品牌</label><select id="fChgBrand"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>变化幅度</label><select id="fChgThreshold"><option value="0">全部</option><option value="5">≥5名</option><option value="10">≥10名</option><option value="20">≥20名</option><option value="30">≥30名</option></select></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyChangeFilters()">分析</button>
+        <button class="btn btn-reset" onclick="resetChangeFilters()">重置</button>
+      </div>
+    </div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>排名上升最快TOP20 <span class="tag tag-new">黑马</span></h3><p style="font-size:11px;color:#999;margin:0 0 8px">排名上升名次最大的TOP20</p><div class="chart-wrap tall"><canvas id="chartRankUp"></canvas></div></div>
+    <div class="chart-card"><h3>排名下降最快TOP20 <span class="tag" style="background:#fce7f3;color:#be185d">风险</span></h3><p style="font-size:11px;color:#999;margin:0 0 8px">排名下滑名次最大的TOP20</p><div class="chart-wrap tall"><canvas id="chartRankDown"></canvas></div></div>
+    <div class="chart-card full"><h3>排名变化幅度分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">上升/下降各区间/新入榜/跌出 产品数量</p><div class="chart-wrap"><canvas id="chartChgDist"></canvas></div></div>
+    <div class="chart-card full"><h3>品牌排名变化对比</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各品牌上升/下降/新入榜/跌出数</p><div class="chart-wrap tall"><canvas id="chartBrandChg"></canvas></div></div>
+  </div>
+  <div class="table-card">
+    <h3>新入榜产品列表（<span id="newEntryCount">0</span>条）</h3>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>排名</th><th>ASIN</th><th>品牌</th><th>小类</th><th>价格</th><th>评分</th><th>评论数</th><th>上架日期</th><th>链接</th>
+    </tr></thead><tbody id="newEntryBody"></tbody></table></div>
+  </div>
+  <div class="table-card">
+    <h3>跌出榜单产品列表（<span id="dropOutCount">0</span>条）</h3>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>上月排名</th><th>ASIN</th><th>品牌</th><th>小类</th><th>价格</th><th>评分</th><th>评论数</th><th>链接</th>
+    </tr></thead><tbody id="dropOutBody"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ==================== TAB 4: 竞争格局 ==================== -->
+<div class="tab-page" id="page-competition">
+  <div class="filter-panel">
+    <h3>竞争格局筛选</h3>
+    <div class="filter-row">
+      <div class="filter-group"><label>数据月份</label><select id="fCompMonth"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>小类</label><select id="fCompSubCat"><option value="">全部</option></select></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyCompFilters()">分析</button>
+        <button class="btn btn-reset" onclick="resetCompFilters()">重置</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats-bar" id="compKPI">
+    <div class="stat-card"><div class="label">上榜品牌数</div><div class="value" id="kpiBrandCount">-</div></div>
+    <div class="stat-card blue"><div class="label">CR5</div><div class="value" id="kpiCR5">-</div><div class="sub">前5品牌产品占比</div></div>
+    <div class="stat-card"><div class="label">CR10</div><div class="value" id="kpiCR10">-</div><div class="sub">前10品牌产品占比</div></div>
+    <div class="stat-card yellow"><div class="label">HHI指数</div><div class="value" id="kpiHHI">-</div><div class="sub" id="kpiHHILevel">-</div></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>品牌上榜数量排名TOP15</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各品牌TOP100产品数量</p><div class="chart-wrap tall"><canvas id="chartCompBrandRank"></canvas></div></div>
+    <div class="chart-card"><h3>品牌市场份额</h3><p style="font-size:11px;color:#999;margin:0 0 8px">按销量计算各品牌市场份额</p><div class="chart-wrap"><canvas id="chartCompBrandShare"></canvas></div></div>
+    <div class="chart-card full"><h3>品牌定位矩阵 <span class="tag tag-blue">价格×排名×销量</span></h3><p style="font-size:11px;color:#999;margin:0 0 8px">X=平均价格，Y=平均排名（倒序），气泡=上榜产品数</p><div class="chart-wrap tall"><canvas id="chartCompPosition"></canvas></div></div>
+    <div class="chart-card full"><h3>价格带×品牌分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各价格带中不同品牌的产品数量分布</p><div class="chart-wrap tall"><canvas id="chartCompPriceBrand"></canvas></div></div>
+    <div class="chart-card full"><h3>小类竞争激烈度排名</h3><p style="font-size:11px;color:#999;margin:0 0 8px">按新入榜率/跌出率排序</p><div class="chart-wrap tall"><canvas id="chartCompIntensity"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ==================== TAB 5: 属性×排名 ==================== -->
+<div class="tab-page" id="page-attribute">
+  <div class="filter-panel">
+    <h3>属性分析筛选</h3>
+    <div class="filter-row">
+      <div class="filter-group"><label>数据月份</label><select id="fAttrMonth"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>小类</label><select id="fAttrSubCat"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>品牌</label><select id="fAttrBrand"><option value="">全部</option></select></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyAttrFilters()">分析</button>
+        <button class="btn btn-reset" onclick="resetAttrFilters()">重置</button>
+      </div>
+    </div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-card"><h3>风格上榜数量分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各风格类型在TOP100中的产品数量</p><div class="chart-wrap"><canvas id="chartAttrStyle"></canvas></div></div>
+    <div class="chart-card"><h3>面料上榜数量分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各面料类型在TOP100中的产品数量</p><div class="chart-wrap"><canvas id="chartAttrFabric"></canvas></div></div>
+    <div class="chart-card"><h3>属性1上榜数量分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各属性1类型在TOP100中的产品数量</p><div class="chart-wrap"><canvas id="chartAttr1"></canvas></div></div>
+    <div class="chart-card"><h3>属性2上榜数量分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各属性2类型在TOP100中的产品数量</p><div class="chart-wrap"><canvas id="chartAttr2"></canvas></div></div>
+    <div class="chart-card full"><h3>各属性平均排名对比</h3><p style="font-size:11px;color:#999;margin:0 0 8px">不同属性类型的平均排名对比</p><div class="chart-wrap tall"><canvas id="chartAttrAvgRank"></canvas></div></div>
+    <div class="chart-card full"><h3>价格梯度×排名分布</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各价格梯度中不同排名梯队的产品数量</p><div class="chart-wrap tall"><canvas id="chartPriceRankDist"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ==================== TAB 6: BSR明细 ==================== -->
+<div class="tab-page" id="page-detail">
+  <div class="filter-panel">
+    <h3>BSR明细筛选</h3>
+    <div class="filter-row">
+      <div class="filter-group"><label>月份</label><select id="fDetailMonth"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>小类</label><select id="fDetailSubCat"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>品牌</label><select id="fDetailBrand"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>排名区间</label><select id="fDetailRank"><option value="">全部</option><option value="1-10">1-10</option><option value="11-20">11-20</option><option value="21-50">21-50</option><option value="51-100">51-100</option></select></div>
+      <div class="filter-group"><label>变化方向</label><select id="fDetailChange"><option value="">全部</option><option value="up">上升</option><option value="down">下降</option><option value="new">新入榜</option><option value="out">跌出</option></select></div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="applyDetailFilters()">筛选</button>
+        <button class="btn btn-reset" onclick="resetDetailFilters()">重置</button>
+      </div>
+    </div>
+  </div>
+  <div class="table-card">
+    <h3>BSR明细数据（<span id="detailCount">0</span>条）</h3>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>小类排名</th><th>排名变化</th><th>ASIN</th><th>品牌</th><th>小类</th><th>价格</th><th>评分</th><th>评论数</th><th>月销量</th><th>上架日期</th><th>在榜月数</th><th>链接</th>
+    </tr></thead><tbody id="detailBody"></tbody></table></div>
+  </div>
+</div>
+
+<!-- ==================== TAB 7: AI洞察 ==================== -->
+<div class="tab-page" id="page-aiinsight">
+  <div class="filter-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div>
+        <h3>🧠 AI智能分析</h3>
+        <p style="font-size:12px;color:#666;margin:4px 0 0">逐模块深度分析BSR数据，自动生成洞察报告</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary" onclick="startInsightAnalysis()" id="btnGenReport">▶ 开始分析</button>
+        <button class="btn btn-reset" onclick="exportInsightReport()" id="btnExportReport" style="display:none">📋 导出报告</button>
+        <span id="insightStatus" style="font-size:12px;color:#999"></span>
+      </div>
+    </div>
+  </div>
+  <div class="insight-layout">
+    <div class="insight-sidebar" id="insightSidebar">
+      <div class="insight-sidebar-title">分析目录</div>
+      <div id="insightMenuList"></div>
+      <div class="insight-progress" id="insightProgress">
+        <div class="insight-progress-text">进度：0/6</div>
+        <div class="insight-progress-bar"><div class="insight-progress-fill" id="insightProgressFill"></div></div>
+      </div>
+    </div>
+    <div class="insight-content" id="insightContent">
+      <div style="text-align:center;padding:80px 20px;color:#999" id="insightEmpty">
+        <div style="font-size:48px;margin-bottom:16px">🧠</div>
+        <div style="font-size:16px;margin-bottom:8px">BSR数据深度分析</div>
+        <div style="font-size:13px">点击「开始分析」按钮，AI将逐个分析BSR数据并生成详细洞察</div>
+        <div style="font-size:12px;color:#ccc;margin-top:12px">共6个分析模块 · 左侧目录可跳转 · 支持导出完整报告</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeImportModal()">×</button>
+    <h2>导入BSR数据</h2>
+    <p>支持 .xlsx / .xls / .csv，系统自动识别表头并匹配列名。支持多次导入不同月份数据自动合并。</p>
+    <div id="recentFilesSection" style="display:none;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span>🕒</span> 最近使用</div>
+      <div id="recentFilesList" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📁</div><div>点击选择文件 或 拖拽文件到此处</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px">支持 .xlsx / .xls / .csv 格式</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
+    <div id="columnMappingArea" style="display:none">
+      <p style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">列映射确认：</p>
+      <table class="column-map" id="columnMapTable"><thead><tr><th>系统字段</th><th>识别的列</th><th>状态</th></tr></thead><tbody></tbody></table>
+    </div>
+    <button class="btn-confirm" id="confirmImport" onclick="confirmImportData()" disabled>确认导入</button>
+  </div>
+</div>
+
+<!-- Ranking Detail Modal -->
+<div class="modal-overlay" id="rankingDetailModal">
+  <div class="modal" style="max-width:800px">
+    <button class="close-btn" onclick="closeRankingDetailModal()">×</button>
+    <h2 id="rankingDetailTitle">明细</h2>
+    <p id="rankingDetailSubtitle" style="font-size:12px;color:var(--text-secondary);margin-bottom:12px"></p>
+    <div style="overflow-x:auto;max-height:60vh;overflow-y:auto">
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead style="position:sticky;top:0;background:var(--bg)">
+          <tr>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">排名</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">ASIN</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">品牌</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">小类</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">价格</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">评分</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">评论数</th>
+            <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">链接</th>
+          </tr>
+        </thead>
+        <tbody id="rankingDetailBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo">BSR小类排名分析看板 v1.0 | 数据来源：TOP100月度快照</div>
+</div><!-- End Content Area -->
+
+<!-- AI Chat Panel -->
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-panel-header">
+    <h2>AI 智能助手</h2>
+    <div class="ai-panel-header-actions">
+      <button class="ai-panel-btn" onclick="toggleSettings()">⚙️ 设置</button>
+      <button class="ai-panel-btn" onclick="clearChat()">🗑️ 清空</button>
+    </div>
+    <button class="ai-panel-close" onclick="toggleAIPanel()">×</button>
+  </div>
+  <div class="ai-settings" id="aiSettings">
+    <div class="ai-settings-content">
+      <div class="ai-settings-row">
+        <div class="ai-settings-group" style="flex:2"><label>API地址 (Base URL)</label><input type="text" id="aiApiUrl" placeholder="https://api.deepseek.com/v1"></div>
+      </div>
+      <div class="ai-settings-row">
+        <div class="ai-settings-group" style="flex:2"><label>API密钥 (API Key)</label><input type="password" id="aiApiKey" placeholder="sk-..."></div>
+        <div class="ai-settings-group" style="flex:1">
+          <label>模型名称</label>
+          <select id="aiModelSelect" onchange="if(this.value)document.getElementById('aiModel').value=this.value" style="margin-bottom:4px">
+            <option value="">-- 快捷选择 --</option>
+            <optgroup label="Deepseek"><option value="deepseek-chat">deepseek-chat</option><option value="deepseek-reasoner">deepseek-reasoner</option></optgroup>
+            <optgroup label="OpenAI"><option value="gpt-4o">gpt-4o</option><option value="gpt-4o-mini">gpt-4o-mini</option></optgroup>
+            <optgroup label="通义千问"><option value="qwen-plus">qwen-plus</option><option value="qwen-max">qwen-max</option></optgroup>
+            <optgroup label="智谱AI"><option value="glm-4">glm-4</option><option value="glm-4-flash">glm-4-flash</option></optgroup>
+          </select>
+          <input type="text" id="aiModel" placeholder="或手动输入模型名">
+        </div>
+      </div>
+      <div class="ai-settings-row">
+        <button class="ai-settings-save" onclick="saveAISettings()">💾 保存设置</button>
+        <button class="ai-settings-save" onclick="testAIConnection()" style="background:#43e97b">🔌 测试连接</button>
+      </div>
+      <div class="ai-settings-status" id="aiSettingsStatus"></div>
+    </div>
+  </div>
+  <div class="ai-chat" id="aiChat">
+    <div class="ai-msg system">👋 你好！我是BSR排名分析助手。请先点击「设置」配置API，然后就可以和我对话了！</div>
+  </div>
+  <div class="ai-chat-input">
+    <div class="ai-chat-input-row">
+      <textarea class="ai-chat-textarea" id="aiChatInput" placeholder="输入你的问题... (Enter发送, Shift+Enter换行)" rows="1"></textarea>
+      <button class="ai-chat-send" id="aiChatSend" onclick="sendChatMessage()">发送</button>
+    </div>
+    <div class="ai-chat-hints">
+      <span class="ai-chat-hint" onclick="insertHint('分析当前BSR榜单格局')">📊 榜单格局</span>
+      <span class="ai-chat-hint" onclick="insertHint('哪些品牌在上升？')">🏆 品牌趋势</span>
+      <span class="ai-chat-hint" onclick="insertHint('给出冲榜策略建议')">💡 冲榜策略</span>
+      <span class="ai-chat-hint" onclick="insertHint('分析价格与排名关系')">💰 价格策略</span>
+    </div>
+  </div>
+</div>
+</div><!-- End Main Wrapper -->
+
+<script>
+// ========== BSR SYSTEM FIELDS ==========
+const SYSTEM_FIELDS=[
+  {key:'竞品ASIN',label:'ASIN',cat:'属性',aliases:['竞品ASIN','ASIN','asin']},
+  {key:'父ASIN',label:'父ASIN',cat:'属性',aliases:['父ASIN','父asin']},
+  {key:'品牌名',label:'品牌',cat:'属性',aliases:['品牌名','品牌','brand','品牌名']},
+  {key:'品类',label:'品类',cat:'属性',aliases:['品类','category','大类']},
+  {key:'小类',label:'小类',cat:'属性',aliases:['小类','小类目','子类目']},
+  {key:'风格',label:'风格',cat:'属性',aliases:['风格','style']},
+  {key:'面料',label:'面料',cat:'属性',aliases:['面料','面料类型','fabric']},
+  {key:'属性1',label:'属性1',cat:'属性',aliases:['属性1']},
+  {key:'属性2',label:'属性2',cat:'属性',aliases:['属性2']},
+  {key:'标题',label:'标题',cat:'属性',aliases:['标题','title']},
+  {key:'Buybox价格',label:'Buybox价格',cat:'数值',aliases:['Buybox价格','价格','price','Buybox']},
+  {key:'评分',label:'评分',cat:'数值',aliases:['评分','rating','分数']},
+  {key:'父体Rating数',label:'评论数',cat:'数值',aliases:['父体Rating数','评论数','评价数','Rating数']},
+  {key:'大类排名',label:'大类排名',cat:'数值',aliases:['大类排名','排名','BSR','bsr','rank']},
+  {key:'小类排名',label:'小类排名',cat:'数值',aliases:['小类排名','小类BSR']},
+  {key:'变体数',label:'变体数',cat:'数值',aliases:['变体数']},
+  {key:'上架日期',label:'上架日期',cat:'日期',aliases:['上架日期','上架时间']},
+  {key:'数据时间',label:'数据时间',cat:'日期',aliases:['数据时间','数据月份','数据日期']},
+  {key:'抓取时间',label:'抓取时间',cat:'日期',aliases:['抓取时间','月份']},
+  {key:'链接',label:'链接',cat:'链接',aliases:['链接','url','link','产品链接']},
+];
+
+let ALL_DATA=[],ALL_MONTHS=[],importedFileName='';
+const COLORS=['#667eea','#f093fb','#4facfe','#43e97b','#fa709a','#fee140','#30cfd0','#a18cd1','#fbc2eb','#8fd3f4','#ff9a9e','#fad0c4','#ffecd2','#fcb69f','#a1c4fd','#c2e9fb'];
+function getColor(i){return COLORS[i%COLORS.length]}
+
+// ========== CHART INFRASTRUCTURE ==========
+const crosshairPlugin={id:'crosshair',afterDraw(chart){if(chart.config.type==='doughnut'||chart.config.type==='pie')return;if(chart.tooltip?._active?.length){const activePoint=chart.tooltip._active[0];const ctx=chart.ctx;const x=activePoint.element.x;const y=activePoint.element.y;ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(x,chart.scales.y.top);ctx.lineTo(x,chart.scales.y.bottom);ctx.lineWidth=1;ctx.strokeStyle='rgba(102,126,234,0.5)';ctx.stroke();ctx.restore();ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(chart.scales.x.left,y);ctx.lineTo(chart.scales.x.right,y);ctx.lineWidth=1;ctx.strokeStyle='rgba(102,126,234,0.3)';ctx.stroke();ctx.restore();ctx.save();ctx.beginPath();ctx.arc(x,y,5,0,2*Math.PI);ctx.fillStyle='#667eea';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.restore()}}};
+Chart.register(ChartDataLabels,crosshairPlugin);
+Chart.defaults.font.family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif";
+Chart.defaults.font.size=11;Chart.defaults.color='#6b7280';
+Chart.defaults.plugins.legend.labels.usePointStyle=true;Chart.defaults.plugins.legend.labels.padding=16;Chart.defaults.plugins.legend.labels.font={size:11,weight:'500'};
+Chart.defaults.plugins.tooltip.backgroundColor='rgba(26,26,46,.9)';Chart.defaults.plugins.tooltip.mode='index';Chart.defaults.plugins.tooltip.intersect=false;Chart.defaults.plugins.tooltip.cornerRadius=8;Chart.defaults.plugins.tooltip.padding=10;
+Chart.defaults.scale.grid.color='rgba(0,0,0,.04)';Chart.defaults.scale.border={display:false};
+Chart.defaults.elements.line.borderWidth=2;Chart.defaults.elements.line.tension=0.4;Chart.defaults.elements.point.radius=3;Chart.defaults.elements.point.hoverRadius=5;Chart.defaults.elements.bar.borderRadius=4;
+
+Chart.defaults.set('plugins.datalabels',{display:function(ctx){const type=ctx.chart.config.type;if(type==='doughnut'||type==='pie'){if(ctx.dataset.data.length>15)return false;const total=ctx.dataset.data.reduce((a,b)=>a+b,0);return total>0&&ctx.raw/total>=0.05}if(type==='bar'){return ctx.dataset.data.length<=15}if(type==='line'){return ctx.dataset.data.length<=8&&ctx.dataIndex%3===0}return false},color:'#374151',font:{size:10,weight:'600'},anchor:'end',align:'top',formatter:function(value){if(value===null||value===undefined)return'';if(typeof value==='number'){if(value===0)return'';if(value>=1e4)return(value/1e4).toFixed(1)+'w';if(value>=1e3)return(value/1e3).toFixed(1)+'K';if(value%1!==0)return value.toFixed(1);return value}return value},padding:{top:2,bottom:2,left:4,right:4}});
+
+function safeNum(v){const n=parseFloat(v);return isNaN(n)?0:n}
+function sum(arr){return arr.reduce((a,b)=>a+b,0)}
+function avg(arr){return arr.length?sum(arr)/arr.length:0}
+
+let charts={};
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
+const chartClickHandlers={};
+function registerChartClick(chartId,handler){chartClickHandlers[chartId]=handler}
+function makeChart(id,config){
+  destroyChart(id);const c=document.getElementById(id);if(!c)return null;
+  // Add click handler if registered
+  if(chartClickHandlers[id]){
+    if(!config.options)config.options={};
+    config.options.onClick=(event,elements)=>{
+      if(elements.length>0)chartClickHandlers[id](elements[0].index,event);
+    };
+  }
+  charts[id]=new Chart(c.getContext('2d'),config);return charts[id]
+}
+function resizeAllCharts(){Object.values(charts).forEach(chart=>{if(chart&&chart.resize)chart.resize()})}
+
+// ========== TABS ==========
+document.querySelectorAll('.tab-bar .tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-bar .tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-'+btn.dataset.tab).classList.add('active');
+    setTimeout(applyFilters,50);
+  });
+});
+
+// ========== IMPORT ==========
+function openImportModal(){document.getElementById('importModal').classList.add('active');document.getElementById('columnMappingArea').style.display='none';document.getElementById('confirmImport').disabled=true;document.getElementById('fileInput').value='';loadRecentFiles()}
+function closeImportModal(){document.getElementById('importModal').classList.remove('active')}
+
+function saveRecentFile(fileName){let r=JSON.parse(localStorage.getItem('bsrRecentFiles')||'[]');r=r.filter(f=>f.name!==fileName);r.unshift({name:fileName,time:new Date().toLocaleString('zh-CN')});r=r.slice(0,5);localStorage.setItem('bsrRecentFiles',JSON.stringify(r))}
+function loadRecentFiles(){const r=JSON.parse(localStorage.getItem('bsrRecentFiles')||'[]');const s=document.getElementById('recentFilesSection');const l=document.getElementById('recentFilesList');if(r.length===0){s.style.display='none';return}s.style.display='block';l.innerHTML=r.map(f=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border-light);font-size:12px;cursor:pointer" onclick="loadRecentFileByName('${f.name}')"><span>📄 ${f.name}</span><span style="color:var(--text-muted);font-size:10px">${f.time}</span></div>`).join('')}
+function loadRecentFileByName(name){closeImportModal();/* would need stored file ref */}
+
+const dz=document.getElementById('dropZone');dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0])});
+document.getElementById('fileInput').addEventListener('change',e=>{if(e.target.files.length)handleFile(e.target.files[0])});
+
+let pendingHeaders=[],pendingRows=[],columnMapping={};
+function handleFile(file){
+  document.getElementById('importStatus').className='import-status loading';document.getElementById('importStatus').textContent='解析中...';
+  importedFileName=file.name;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{const data=new Uint8Array(e.target.result);const wb=XLSX.read(data,{type:'array'});
+    // Try 'bs' sheet first, then first sheet
+    let sheetName=wb.SheetNames.find(n=>n.toLowerCase()==='bs')||wb.SheetNames[0];
+    const sheet=wb.Sheets[sheetName];const json=XLSX.utils.sheet_to_json(sheet,{defval:''});
+    if(!json.length){document.getElementById('importStatus').textContent='文件为空';return}
+    pendingHeaders=Object.keys(json[0]);pendingRows=json;buildColumnMapping();
+    document.getElementById('columnMappingArea').style.display='block';document.getElementById('confirmImport').disabled=false;
+    document.getElementById('importStatus').className='import-status success';document.getElementById('importStatus').textContent=`识别到${json.length}行 (sheet: ${sheetName})`;
+    }catch(err){document.getElementById('importStatus').className='import-status loading';document.getElementById('importStatus').textContent='解析失败: '+err.message}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function buildColumnMapping(){
+  columnMapping={};const tbody=document.querySelector('#columnMapTable tbody');tbody.innerHTML='';
+  SYSTEM_FIELDS.forEach(field=>{
+    let matched='';
+    if(pendingHeaders.includes(field.key))matched=field.key;
+    else if(field.aliases){matched=field.aliases.find(a=>pendingHeaders.includes(a))||field.aliases.find(a=>pendingHeaders.find(h=>h.toLowerCase()===a.toLowerCase()))||field.aliases.find(a=>pendingHeaders.find(h=>h.includes(a)||a.includes(h)))||''}
+    else{const lc=field.key.toLowerCase();matched=pendingHeaders.find(h=>h.toLowerCase()===lc)||pendingHeaders.find(h=>h.includes(field.key)||field.key.includes(h))||''}
+    columnMapping[field.key]=matched;
+    const tr=document.createElement('tr');tr.innerHTML=`<td><strong>${field.label}</strong> <span style="color:#999;font-size:10px">(${field.cat})</span></td><td><select data-field="${field.key}" onchange="columnMapping[this.dataset.field]=this.value"><option value="">--跳过--</option>${pendingHeaders.map(h=>`<option value="${h}" ${h===matched?'selected':''}>${h}</option>`).join('')}</select></td><td style="color:${matched?'#1a9957':'#d32f2f'}">${matched?'✓':'⚠'}</td>`;tbody.appendChild(tr);
+  });
+}
+
+function confirmImportData(){
+  const status=document.getElementById('importStatus');status.className='import-status loading';status.textContent='导入中...';
+
+  // Detect months ONLY from 数据时间 field
+  const dm=[];
+  const dataTimeCol=columnMapping['数据时间']||pendingHeaders.find(h=>h==='数据时间');
+
+  if(dataTimeCol){
+    pendingRows.forEach(r=>{
+      const raw=r[dataTimeCol];
+      if(!raw)return;
+      let ym='';
+      if(raw instanceof Date&&!isNaN(raw.getTime())){
+        ym=raw.getFullYear()+String(raw.getMonth()+1).padStart(2,'0');
+      }else if(typeof raw==='number'){
+        const d=new Date((raw-25569)*864e5);
+        if(!isNaN(d.getTime()))ym=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');
+      }else{
+        const s=String(raw).trim();
+        const ymMatch=s.match(/(\d{4})[-/年](\d{1,2})/);
+        if(ymMatch)ym=ymMatch[1]+ymMatch[2].padStart(2,'0');
+      }
+      if(ym&&!dm.includes(ym))dm.push(ym);
+    });
+  }
+
+  // Fallback: if no 数据时间, try sales columns (legacy mode)
+  if(dm.length===0){
+    const monthPattern=/^(?:父体销量|子体销量|Sales?_?)(\d{4})(\d{2})$/i;
+    pendingHeaders.forEach(h=>{const m=h.match(monthPattern);if(m){const ym=m[1]+m[2];if(!dm.includes(ym))dm.push(ym)}});
+  }
+
+  dm.sort();
+  ALL_MONTHS=dm;
+
+  ALL_DATA=pendingRows.map(row=>{
+    const item={};SYSTEM_FIELDS.forEach(f=>{item[f.key]=columnMapping[f.key]?String(row[columnMapping[f.key]]||''):''});
+
+    // Parse sales: take the latest non-zero value from all 父体销量 columns
+    const sales={};
+    const salesMap={};
+    pendingHeaders.forEach(h=>{
+      const m=h.match(/^父体销量(\d{6})$/);
+      if(m){const val=safeNum(row[h]);if(val>0)salesMap[m[1]]=val}
+    });
+    // Set sales for each month in ALL_MONTHS
+    ALL_MONTHS.forEach(m=>{sales[m]=salesMap[m]||0});
+    item.sales=sales;
+
+    // Determine which month this record belongs to - ONLY from 数据时间
+    item._dataMonth='';
+    if(dataTimeCol){
+      const raw=row[dataTimeCol];
+      if(raw instanceof Date&&!isNaN(raw.getTime())){
+        item._dataMonth=raw.getFullYear()+String(raw.getMonth()+1).padStart(2,'0');
+      }else if(typeof raw==='number'){
+        // Excel serial date number
+        const d=new Date((raw-25569)*864e5);
+        if(!isNaN(d.getTime()))item._dataMonth=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');
+      }else{
+        const s=String(raw||'').trim();
+        const ymMatch=s.match(/(\d{4})[-/年](\d{1,2})/);
+        if(ymMatch)item._dataMonth=ymMatch[1]+ymMatch[2].padStart(2,'0');
+      }
+    }
+    // Calculate months on list
+    item._monthsOnList=0;ALL_MONTHS.forEach(m=>{if(safeNum(item.sales[m])>0||safeNum(item['小类排名'])>0)item._monthsOnList++});
+    // Calculate if new product (listed within 90 days)
+    item._isNew=false;
+    const listDate=item['上架日期'];
+    if(listDate&&listDate!=='暂无'){
+      const daysSince=Math.floor((new Date()-new Date(String(listDate).split(' ')[0]))/864e5);
+      item._isNew=daysSince>=0&&daysSince<=90;
+    }
+    return item;
+  });
+
+  closeImportModal();
+  rebuildFilterOptions();applyFilters();
+  status.className='import-status success';status.textContent=`导入成功${ALL_DATA.length}条`;
+  document.getElementById('headerDesc').textContent=`${importedFileName} · ${ALL_DATA.length}条记录 · ${ALL_MONTHS.length}个月度`;
+  saveRecentFile(importedFileName);
+  registerAllChartClickHandlers();
+}
+
+// ========== FILTERS ==========
+function rebuildFilterOptions(){
+  // Only use _dataMonth from 数据时间 field
+  const months=[...new Set(ALL_DATA.map(d=>d._dataMonth).filter(v=>v))].sort();
+  ALL_MONTHS=months.length>0?months:ALL_MONTHS;
+
+  const fill=(id,vals,extra)=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=(extra||'<option value="">全部</option>')+vals.map(v=>`<option value="${v}">${v}</option>`).join('')};
+
+  fill('fMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)));
+  fill('fSubCategory',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
+  fill('fBrand',[...new Set(ALL_DATA.map(d=>d['品牌名']||d['品牌']).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)))].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase())));
+
+  // Compare filters
+  fill('fBaseMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)),'<option value="">选择</option>');
+  fill('fCompareMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)),'<option value="">选择</option>');
+  fill('fCompareSubCat',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
+  fill('fCompareBrand',[...new Set(ALL_DATA.map(d=>d['品牌名']||d['品牌']).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)))].sort());
+
+  // Change filters
+  fill('fChgBaseMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)),'<option value="">选择</option>');
+  fill('fChgCompareMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)),'<option value="">选择</option>');
+  fill('fChgSubCat',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
+  fill('fChgBrand',[...new Set(ALL_DATA.map(d=>d['品牌名']||d['品牌']).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)))].sort());
+
+  // Competition filters
+  fill('fCompMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)));
+  fill('fCompSubCat',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
+
+  // Attribute filters
+  fill('fAttrMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)));
+  fill('fAttrSubCat',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
+  fill('fAttrBrand',[...new Set(ALL_DATA.map(d=>d['品牌名']||d['品牌']).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)))].sort());
+
+  // Detail filters
+  fill('fDetailMonth',ALL_MONTHS.map(m=>m.slice(0,4)+'-'+m.slice(4)));
+  fill('fDetailSubCat',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
+  fill('fDetailBrand',[...new Set(ALL_DATA.map(d=>d['品牌名']||d['品牌']).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)))].sort());
+}
+
+function monthStrToKey(s){if(!s)return'';return s.replace('-','')}
+function monthKeyToLabel(m){return m.slice(0,4)+'-'+m.slice(4)}
+function getBrand(d){return d['品牌名']||d['品牌']||''}
+
+function getFilteredData(){
+  let data=ALL_DATA;
+  const fm=document.getElementById('fMonth');if(fm&&fm.value)data=data.filter(d=>d._dataMonth===monthStrToKey(fm.value));
+  const fs=document.getElementById('fSubCategory');if(fs&&fs.value)data=data.filter(d=>d['小类']===fs.value);
+  const fb=document.getElementById('fBrand');if(fb&&fb.value){const lc=fb.value.toLowerCase();data=data.filter(d=>getBrand(d).toLowerCase()===lc)}
+  return data;
+}
+
+function applyFilters(){try{updateOverviewStats()}catch(e){}try{updateOverviewCharts()}catch(e){}try{updateOverviewTable()}catch(e){}try{updateCompareCharts()}catch(e){}try{updateChangeCharts()}catch(e){}try{updateCompCharts()}catch(e){}try{updateAttrCharts()}catch(e){}try{updateDetailTable()}catch(e){}}
+function resetOverviewFilters(){document.getElementById('fMonth').value='';document.getElementById('fSubCategory').value='';document.getElementById('fBrand').value='';applyFilters()}
+function resetCompareFilters(){['fBaseMonth','fCompareMonth','fCompareSubCat','fCompareBrand'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
+function resetChangeFilters(){['fChgBaseMonth','fChgCompareMonth','fChgSubCat','fChgBrand','fChgThreshold'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
+function resetCompFilters(){document.getElementById('fCompMonth').value='';document.getElementById('fCompSubCat').value='';applyFilters()}
+function resetAttrFilters(){['fAttrMonth','fAttrSubCat','fAttrBrand'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
+function resetDetailFilters(){['fDetailMonth','fDetailSubCat','fDetailBrand','fDetailRank','fDetailChange'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
+function applyCompareFilters(){applyFilters()}
+function applyChangeFilters(){applyFilters()}
+function applyCompFilters(){applyFilters()}
+function applyAttrFilters(){applyFilters()}
+function applyDetailFilters(){applyFilters()}
+
+// ========== TAB 1: OVERVIEW ==========
+function switchOverviewSubTab(tab,btn){
+  document.querySelectorAll('.overview-subtab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('subtab-'+tab).classList.add('active');
+  document.querySelectorAll('#page-overview .tab-btn[data-subtab]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // Re-render charts after tab switch (Chart.js needs visible canvas)
+  setTimeout(()=>{try{updateOverviewCharts()}catch(e){}},50);
+}
+
+function updateOverviewStats(){
+  const data=getFilteredData();
+  const asins=new Set(data.map(d=>d['竞品ASIN']).filter(v=>v));
+  const brands=new Set(data.map(d=>getBrand(d)).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)));
+  const prices=data.map(d=>safeNum(d['Buybox价格'])).filter(v=>v>0);
+  const ratings=data.map(d=>safeNum(d['评分'])).filter(v=>v>0);
+  const reviews=data.map(d=>safeNum(d['父体Rating数'])).filter(v=>v>0);
+  const latestMonth=ALL_MONTHS[ALL_MONTHS.length-1];
+  const totalSales=data.reduce((s,d)=>s+(latestMonth?safeNum(d.sales?.[latestMonth]):0),0);
+
+  // KPI values
+  document.getElementById('kpiTotalSalesVal').textContent=totalSales>=1e4?(totalSales/1e4).toFixed(1)+'w':totalSales.toLocaleString();
+  document.getElementById('kpiTotalProductsVal').textContent=asins.size;
+  document.getElementById('kpiBrandCountVal').textContent=brands.size;
+  document.getElementById('kpiAvgPriceVal').textContent=prices.length?'$'+avg(prices).toFixed(2):'-';
+  document.getElementById('kpiAvgRatingVal').textContent=ratings.length?avg(ratings).toFixed(2):'-';
+
+  // New entry / drop out / retention rate
+  if(ALL_MONTHS.length>=2){
+    const curMonth=ALL_MONTHS[ALL_MONTHS.length-1],prevMonth=ALL_MONTHS[ALL_MONTHS.length-2];
+    const curASINs=new Set(data.filter(d=>d._dataMonth===curMonth).map(d=>d['父ASIN']||d['竞品ASIN']));
+    const prevASINs=new Set(data.filter(d=>d._dataMonth===prevMonth).map(d=>d['父ASIN']||d['竞品ASIN']));
+    let newEntry=0,dropOut=0,retain=0;
+    curASINs.forEach(a=>{if(a&&!prevASINs.has(a))newEntry++;else if(a&&prevASINs.has(a))retain++});
+    prevASINs.forEach(a=>{if(a&&!curASINs.has(a))dropOut++});
+    document.getElementById('kpiNewEntryVal').textContent=newEntry;
+    document.getElementById('kpiDropOutVal').textContent=dropOut;
+    const retainRate=prevASINs.size>0?Math.round(retain/prevASINs.size*100):0;
+    document.getElementById('kpiRetainRateVal').textContent=retainRate+'%';
+  }
+
+  // Sparklines - mini trend charts for each KPI
+  renderSparkline('kpiSparkSales',ALL_MONTHS.map(m=>data.reduce((s,d)=>s+safeNum(d.sales?.[m]||0),0)),'#667eea');
+  renderSparkline('kpiSparkProducts',ALL_MONTHS.map(m=>new Set(data.filter(d=>d._dataMonth===m).map(d=>d['父ASIN']||d['竞品ASIN'])).size),'#4facfe');
+  renderSparkline('kpiSparkBrands',ALL_MONTHS.map(m=>new Set(data.filter(d=>d._dataMonth===m).map(d=>getBrand(d))).size),'#43e97b');
+  renderSparkline('kpiSparkPrice',ALL_MONTHS.map(m=>{const p=data.filter(d=>d._dataMonth===m).map(d=>safeNum(d['Buybox价格'])).filter(v=>v>0);return p.length?avg(p):0}),'#fee140');
+  renderSparkline('kpiSparkRating',ALL_MONTHS.map(m=>{const r=data.filter(d=>d._dataMonth===m).map(d=>safeNum(d['评分'])).filter(v=>v>0);return r.length?avg(r):0}),'#fa709a');
+  renderSparkline('kpiSparkEntry',ALL_MONTHS.slice(1).map((m,i)=>{const cur=new Set(data.filter(d=>d._dataMonth===m).map(d=>d['父ASIN']||d['竞品ASIN']));const prev=new Set(data.filter(d=>d._dataMonth===ALL_MONTHS[i]).map(d=>d['父ASIN']||d['竞品ASIN']));let n=0;cur.forEach(a=>{if(a&&!prev.has(a))n++});return n}),'#43e97b');
+  renderSparkline('kpiSparkDrop',ALL_MONTHS.slice(1).map((m,i)=>{const cur=new Set(data.filter(d=>d._dataMonth===m).map(d=>d['父ASIN']||d['竞品ASIN']));const prev=new Set(data.filter(d=>d._dataMonth===ALL_MONTHS[i]).map(d=>d['父ASIN']||d['竞品ASIN']));let n=0;prev.forEach(a=>{if(a&&!cur.has(a))n++});return n}),'#fa709a');
+  renderSparkline('kpiSparkRetain',ALL_MONTHS.slice(1).map((m,i)=>{const cur=new Set(data.filter(d=>d._dataMonth===m).map(d=>d['父ASIN']||d['竞品ASIN']));const prev=new Set(data.filter(d=>d._dataMonth===ALL_MONTHS[i]).map(d=>d['父ASIN']||d['竞品ASIN']));let r=0;cur.forEach(a=>{if(a&&prev.has(a))r++});return prev.size>0?Math.round(r/prev.size*100):0}),'#667eea');
+}
+
+function renderSparkline(canvasId,data,color){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  destroyChart('spark_'+canvasId);
+  const ctx=canvas.getContext('2d');
+  charts['spark_'+canvasId]=new Chart(ctx,{type:'line',data:{labels:data.map((_,i)=>i),datasets:[{data,borderColor:color,backgroundColor:color+'15',fill:true,tension:.4,borderWidth:1.5,pointRadius:0,pointHoverRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}},elements:{line:{borderWidth:1.5}}}});
+}
+
+function updateOverviewCharts(){
+  const data=getFilteredData();
+  const topN=parseInt(document.getElementById('fTopN')?.value||'100');
+  const latestMonth=ALL_MONTHS[ALL_MONTHS.length-1];
+  if(!latestMonth)return;
+
+  // === 商品集中度 Chart ===
+  try{
+    const rankedItems=data.filter(d=>safeNum(d['小类排名'])>0).sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名'])).slice(0,topN);
+    const totalSalesAll=data.reduce((s,d)=>s+(latestMonth?safeNum(d.sales?.[latestMonth]):0),0);
+    const concLabels=rankedItems.map(d=>safeNum(d['小类排名']));
+    const concSales=rankedItems.map(d=>latestMonth?safeNum(d.sales?.[latestMonth]):0);
+    let concCumulative=0;
+    const concPctLine=concSales.map(s=>{concCumulative+=s;return totalSalesAll>0?Math.round(concCumulative/totalSalesAll*1000)/10:0});
+    document.getElementById('concTop1Pct').textContent=concSales.length>0&&totalSalesAll>0?Math.round(concSales[0]/totalSalesAll*100).toFixed(1)+'%':'-';
+    document.getElementById('concAvgSales').textContent=concSales.length>0?Math.round(avg(concSales)).toLocaleString():'-';
+    const newCount=data.filter(d=>d._isNew).length;
+    document.getElementById('concNewPct').textContent=data.length>0?Math.round(newCount/data.length*100)+'%':'-';
+    const newSales=rankedItems.filter(d=>d._isNew).reduce((s,d)=>s+safeNum(d.sales?.[latestMonth]||0),0);
+    document.getElementById('concNewSalesPct').textContent=concCumulative>0?Math.round(newSales/concCumulative*100)+'%':'-';
+    makeChart('chartConcentration',{type:'bar',data:{labels:concLabels,datasets:[{label:'销量',data:concSales,backgroundColor:'#f59e0b',borderRadius:2,order:2,yAxisID:'y'},{label:'销量占比',data:concPctLine,type:'line',borderColor:'#22c55e',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:1,pointBackgroundColor:'#22c55e',order:1,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rect',font:{size:11}}},tooltip:{callbacks:{label:ctx=>{if(ctx.dataset.label==='销量')return '销量: '+ctx.raw.toLocaleString();return '占比: '+ctx.raw+'%'}}}},scales:{x:{title:{display:true,text:'小类排名'},grid:{display:false},ticks:{maxTicksLimit:30,font:{size:9}}},y:{position:'left',title:{display:true,text:'销量'},beginAtZero:true,ticks:{callback:v=>v>=1e4?(v/1e4).toFixed(1)+'w':v>=1e3?(v/1e3).toFixed(1)+'K':v}},y1:{position:'right',title:{display:true,text:'销量占比(%)'},beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}});
+  }catch(e){console.error('Concentration chart error:',e)}
+
+  // === 品牌集中度 Chart ===
+  try{
+    const brandSalesMap={};
+    data.forEach(d=>{const b=getBrand(d);if(!b||b==='暂无'||!/^[a-zA-Z]/.test(b))return;brandSalesMap[b]=(brandSalesMap[b]||0)+(latestMonth?safeNum(d.sales?.[latestMonth]):0)});
+    const brandSorted=Object.entries(brandSalesMap).sort((a,b)=>b[1]-a[1]).slice(0,Math.min(20,topN));
+    const brandTotalSales=brandSorted.reduce((s,e)=>s+e[1],0);
+    let brandCumulative=0;
+    const brandPctLine=brandSorted.map(([,v])=>{brandCumulative+=v;return brandTotalSales>0?Math.round(brandCumulative/brandTotalSales*1000)/10:0});
+    const cr5=brandSorted.slice(0,5).reduce((s,e)=>s+e[1],0);
+    const cr5Pct=brandTotalSales>0?Math.round(cr5/brandTotalSales*100):0;
+    document.getElementById('brandTotalCount').textContent=Object.keys(brandSalesMap).length;
+    document.getElementById('brandCR5').textContent=cr5Pct+'%';
+    document.getElementById('brandTop1Pct').textContent=brandSorted.length>0&&brandTotalSales>0?Math.round(brandSorted[0][1]/brandTotalSales*100).toFixed(1)+'%':'-';
+    makeChart('chartBrandConcentration',{type:'bar',data:{labels:brandSorted.map(e=>e[0]),datasets:[{label:'销量',data:brandSorted.map(e=>e[1]),backgroundColor:'#f59e0b',borderRadius:2,order:2,yAxisID:'y'},{label:'销量占比',data:brandPctLine,type:'line',borderColor:'#22c55e',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:1,pointBackgroundColor:'#22c55e',order:1,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rect',font:{size:11}}}},scales:{x:{title:{display:true,text:'品牌'},grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{position:'left',title:{display:true,text:'销量'},beginAtZero:true,ticks:{callback:v=>v>=1e4?(v/1e4).toFixed(1)+'w':v>=1e3?(v/1e3).toFixed(1)+'K':v}},y1:{position:'right',title:{display:true,text:'销量占比(%)'},beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}});
+  }catch(e){console.error('Brand concentration chart error:',e)}
+
+  // === 价格分布 Chart ===
+  try{
+    const priceStep=parseInt(document.getElementById('fPriceStep')?.value||'1');
+    const allPrices=data.map(d=>safeNum(d['Buybox价格'])).filter(v=>v>0);
+    const minP=Math.floor(Math.min(...allPrices));
+    const maxP=Math.ceil(Math.max(...allPrices));
+    const priceBuckets=[];
+    for(let p=minP;p<maxP;p+=priceStep){priceBuckets.push({lo:p,hi:p+priceStep,label:p+'-'+(p+priceStep)})}
+    if(priceBuckets.length===0)priceBuckets.push({lo:0,hi:999,label:'0+'});
+    const priceData=priceBuckets.map(b=>{const items=data.filter(d=>{const p=safeNum(d['Buybox价格']);return p>=b.lo&&p<b.hi});const sales=items.reduce((s,d)=>s+(latestMonth?safeNum(d.sales?.[latestMonth]):0),0);return{count:items.length,sales}});
+    const priceTotalSales=priceData.reduce((s,e)=>s+e.sales,0);
+    let priceCumulative=0;
+    const pricePctLine=priceData.map(e=>{priceCumulative+=e.sales;return priceTotalSales>0?Math.round(priceCumulative/priceTotalSales*1000)/10:0});
+    const pricesSorted=[...allPrices].sort((a,b)=>a-b);
+    document.getElementById('priceAvgVal').textContent=allPrices.length?'$'+avg(allPrices).toFixed(2):'-';
+    document.getElementById('priceMaxVal').textContent=allPrices.length?'$'+Math.max(...allPrices).toFixed(2):'-';
+    document.getElementById('priceMinVal').textContent=allPrices.length?'$'+Math.min(...allPrices).toFixed(2):'-';
+    document.getElementById('priceMedianVal').textContent=pricesSorted.length?'$'+pricesSorted[Math.floor(pricesSorted.length/2)].toFixed(2):'-';
+    makeChart('chartPriceDistribution',{type:'bar',data:{labels:priceData.map(e=>'$'+e.label),datasets:[{label:'产品数量',data:priceData.map(e=>e.count),backgroundColor:'#f59e0b',borderRadius:2,order:2,yAxisID:'y'},{label:'销量占比',data:pricePctLine,type:'line',borderColor:'#22c55e',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:1,pointBackgroundColor:'#22c55e',order:1,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rect',font:{size:11}}}},scales:{x:{title:{display:true,text:'价格区间(USD)'},grid:{display:false}},y:{position:'left',title:{display:true,text:'产品数量'},beginAtZero:true},y1:{position:'right',title:{display:true,text:'销量占比(%)'},beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}});
+  }catch(e){console.error('Price distribution chart error:',e)}
+
+  // === 上架时间分布 Chart ===
+  try{
+    const timeBuckets=[{label:'1个月内',days:30},{label:'3个月内',days:90},{label:'半年内',days:180},{label:'1年内',days:365},{label:'1年半',days:547},{label:'2年内',days:730},{label:'2年半',days:912},{label:'3年内',days:1095},{label:'3年以上',days:99999}];
+    const now=new Date();
+    const timeData=timeBuckets.map(b=>{const items=data.filter(d=>{const days=Math.floor((now-new Date(d['上架日期']||''))/864e5);return days>=0&&days<b.days});const sales=items.reduce((s,d)=>s+(latestMonth?safeNum(d.sales?.[latestMonth]):0),0);return{count:items.length,sales}});
+    const timeTotalSales=timeData.reduce((s,e)=>s+e.sales,0);
+    let timeCumulative=0;
+    const timePctLine=timeData.map(e=>{timeCumulative+=e.sales;return timeTotalSales>0?Math.round(timeCumulative/timeTotalSales*1000)/10:0});
+    const allDays=data.map(d=>{const days=Math.floor((now-new Date(d['上架日期']||''))/864e5);return days>0?days:0}).filter(v=>v>0);
+    const avgDays=allDays.length?Math.round(avg(allDays)):0;
+    const avgYears=Math.floor(avgDays/365);const avgMonths=Math.round((avgDays%365)/30);
+    document.getElementById('listingAvgDays').textContent=avgDays+'天';
+    document.getElementById('listingAvgTime').textContent=avgYears+'年'+avgMonths+'个月';
+    document.getElementById('listingCount').textContent=data.length;
+    document.getElementById('listingSalesPct').textContent=timeTotalSales>0?'100%':'-';
+    makeChart('chartListingTime',{type:'bar',data:{labels:timeData.map(e=>e.label),datasets:[{label:'产品数量',data:timeData.map(e=>e.count),backgroundColor:'#f59e0b',borderRadius:2,order:2,yAxisID:'y'},{label:'销量占比',data:timePctLine,type:'line',borderColor:'#22c55e',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:1,pointBackgroundColor:'#22c55e',order:1,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rect',font:{size:11}}}},scales:{x:{title:{display:true,text:'上架时间'},grid:{display:false}},y:{position:'left',title:{display:true,text:'产品数量'},beginAtZero:true},y1:{position:'right',title:{display:true,text:'销量占比(%)'},beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}});
+  }catch(e){console.error('Listing time chart error:',e)}
+
+  // === 评分分布 Chart ===
+  try{
+    const ratingBuckets=[{label:'3.0-3.5',lo:3,hi:3.5},{label:'3.5-4.0',lo:3.5,hi:4},{label:'4.0-4.2',lo:4,hi:4.2},{label:'4.2-4.4',lo:4.2,hi:4.4},{label:'4.4-4.6',lo:4.4,hi:4.6},{label:'4.6-4.8',lo:4.6,hi:4.8},{label:'4.8-5.0',lo:4.8,hi:5.01}];
+    const ratingData=ratingBuckets.map(b=>{const items=data.filter(d=>{const r=safeNum(d['评分']);return r>=b.lo&&r<b.hi});const sales=items.reduce((s,d)=>s+(latestMonth?safeNum(d.sales?.[latestMonth]):0),0);return{count:items.length,sales}});
+    const ratingTotalSales=ratingData.reduce((s,e)=>s+e.sales,0);
+    let ratingCumulative=0;
+    const ratingPctLine=ratingData.map(e=>{ratingCumulative+=e.sales;return ratingTotalSales>0?Math.round(ratingCumulative/ratingTotalSales*1000)/10:0});
+    const allRatings=data.map(d=>safeNum(d['评分'])).filter(v=>v>0);
+    const highRatingCount=allRatings.filter(r=>r>=4.5).length;
+    const highReviewCount=data.filter(d=>safeNum(d['父体Rating数'])>=1000).length;
+    document.getElementById('ratingAvgVal').textContent=allRatings.length?avg(allRatings).toFixed(2):'-';
+    document.getElementById('ratingAvgReviews').textContent=allRatings.length?Math.round(avg(data.map(d=>safeNum(d['父体Rating数'])).filter(v=>v>0))).toLocaleString():'-';
+    document.getElementById('ratingHighPct').textContent=allRatings.length?Math.round(highRatingCount/allRatings.length*100)+'%':'-';
+    document.getElementById('ratingReviewsPct').textContent=data.length>0?Math.round(highReviewCount/data.length*100)+'%':'-';
+    makeChart('chartRatingDistribution',{type:'bar',data:{labels:ratingData.map(e=>e.label),datasets:[{label:'产品数量',data:ratingData.map(e=>e.count),backgroundColor:'#f59e0b',borderRadius:2,order:2,yAxisID:'y'},{label:'销量占比',data:ratingPctLine,type:'line',borderColor:'#22c55e',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:1,pointBackgroundColor:'#22c55e',order:1,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rect',font:{size:11}}}},scales:{x:{title:{display:true,text:'评分区间'},grid:{display:false}},y:{position:'left',title:{display:true,text:'产品数量'},beginAtZero:true},y1:{position:'right',title:{display:true,text:'销量占比(%)'},beginAtZero:true,max:100,grid:{display:false},ticks:{callback:v=>v+'%'}}}}});
+  }catch(e){console.error('Rating distribution chart error:',e)}
+
+  setTimeout(resizeAllCharts,100);
+}
+
+function updateOverviewTable(){
+  const data=getFilteredData();
+  // Group by subcategory, take top 10 each
+  const subCatGroups={};data.forEach(d=>{const c=d['小类'];if(!c||c==='暂无')return;if(!subCatGroups[c])subCatGroups[c]=[];subCatGroups[c].push(d)});
+  let html='';
+  Object.entries(subCatGroups).sort((a,b)=>b[1].length-a[1].length).forEach(([cat,items])=>{
+    items.sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名']));
+    items.forEach((d,i)=>{
+      const asin=d['父ASIN']||d['竞品ASIN']||'';
+      const brand=getBrand(d);
+      const latestMonth=ALL_MONTHS[ALL_MONTHS.length-1];
+      const latestSales=latestMonth?safeNum(d.sales?.[latestMonth]):0;
+      html+=`<tr><td><strong>${safeNum(d['小类排名'])||i+1}</strong></td><td><a class="link-btn" href="${d['链接']||'https://www.amazon.com/dp/'+asin}" target="_blank">${asin}</a></td><td>${brand}</td><td>${cat}</td><td>$${d['Buybox价格']}</td><td>${d['评分']}</td><td>${safeNum(d['父体Rating数']).toLocaleString()}</td><td>${latestSales.toLocaleString()}</td><td>${formatDateShort(d['上架日期'])}</td><td>${d['链接']?'<a class="link-btn" href="'+d['链接']+'" target="_blank">查看</a>':'-'}</td></tr>`;
+    });
+  });
+  document.getElementById('overviewTop10Body').innerHTML=html||'<tr><td colspan="10" style="text-align:center;color:#999;padding:20px">暂无数据，请先导入BSR数据</td></tr>';
+}
+
+// ========== RANKING DETAIL MODAL ==========
+function showRankingDetail(type){
+  if(ALL_MONTHS.length<2){alert('需要至少两个月数据才能查看明细');return}
+  const data=getFilteredData();
+  const curMonth=ALL_MONTHS[ALL_MONTHS.length-1];
+  const prevMonth=ALL_MONTHS[ALL_MONTHS.length-2];
+  const curASINs=new Set(data.filter(d=>d._dataMonth===curMonth).map(d=>d['父ASIN']||d['竞品ASIN']));
+  const prevASINs=new Set(data.filter(d=>d._dataMonth===prevMonth).map(d=>d['父ASIN']||d['竞品ASIN']));
+  const curDataMap={};data.filter(d=>d._dataMonth===curMonth).forEach(d=>{curDataMap[d['父ASIN']||d['竞品ASIN']]=d});
+  const prevDataMap={};data.filter(d=>d._dataMonth===prevMonth).forEach(d=>{prevDataMap[d['父ASIN']||d['竞品ASIN']]=d});
+
+  let title='',subtitle='',items=[];
+  if(type==='entry'){
+    title='新入榜产品明细';
+    subtitle=`${monthKeyToLabel(curMonth)} 新入榜（上月${monthKeyToLabel(prevMonth)}没有）`;
+    curASINs.forEach(a=>{if(!prevASINs.has(a)&&curDataMap[a])items.push(curDataMap[a])});
+  }else if(type==='dropout'){
+    title='跌出榜单产品明细';
+    subtitle=`${monthKeyToLabel(prevMonth)} 跌出（本月${monthKeyToLabel(curMonth)}没有）`;
+    prevASINs.forEach(a=>{if(!curASINs.has(a)&&prevDataMap[a])items.push(prevDataMap[a])});
+  }else if(type==='retain'){
+    title='榜单留存产品明细';
+    subtitle=`两月都在榜的产品（${monthKeyToLabel(prevMonth)} → ${monthKeyToLabel(curMonth)}）`;
+    curASINs.forEach(a=>{if(prevASINs.has(a)&&curDataMap[a])items.push(curDataMap[a])});
+  }
+
+  items.sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名']));
+  document.getElementById('rankingDetailTitle').textContent=title+' ('+items.length+'个)';
+  document.getElementById('rankingDetailSubtitle').textContent=subtitle;
+  const tbody=document.getElementById('rankingDetailBody');
+  tbody.innerHTML=items.map(d=>{
+    const asin=d['父ASIN']||d['竞品ASIN']||'';
+    const brand=getBrand(d);
+    const rank=safeNum(d['小类排名']);
+    return `<tr><td style="padding:8px;border-bottom:1px solid var(--border-light)"><strong>${rank||'-'}</strong></td><td style="padding:8px;border-bottom:1px solid var(--border-light)"><a class="link-btn" href="${d['链接']||'https://www.amazon.com/dp/'+asin}" target="_blank">${asin}</a></td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${brand}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${d['小类']||'-'}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">$${d['Buybox价格']}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${d['评分']}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${safeNum(d['父体Rating数']).toLocaleString()}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${d['链接']?'<a class="link-btn" href="'+d['链接']+'" target="_blank">查看</a>':'-'}</td></tr>`;
+  }).join('')||'<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">无数据</td></tr>';
+  document.getElementById('rankingDetailModal').classList.add('active');
+}
+
+function closeRankingDetailModal(){document.getElementById('rankingDetailModal').classList.remove('active')}
+
+// Generic function to show product list from any chart click
+function showProductList(title,subtitle,items){
+  items=items||[];
+  document.getElementById('rankingDetailTitle').textContent=title+' ('+items.length+'个)';
+  document.getElementById('rankingDetailSubtitle').textContent=subtitle;
+  const tbody=document.getElementById('rankingDetailBody');
+  tbody.innerHTML=items.sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名'])).map(d=>{
+    const asin=d['父ASIN']||d['竞品ASIN']||'';
+    const brand=getBrand(d);
+    const rank=safeNum(d['小类排名']);
+    return `<tr><td style="padding:8px;border-bottom:1px solid var(--border-light)"><strong>${rank||'-'}</strong></td><td style="padding:8px;border-bottom:1px solid var(--border-light)"><a class="link-btn" href="${d['链接']||'https://www.amazon.com/dp/'+asin}" target="_blank">${asin}</a></td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${brand}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${d['小类']||'-'}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">$${d['Buybox价格']}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${d['评分']}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${safeNum(d['父体Rating数']).toLocaleString()}</td><td style="padding:8px;border-bottom:1px solid var(--border-light)">${d['链接']?'<a class="link-btn" href="'+d['链接']+'" target="_blank">查看</a>':'-'}</td></tr>`;
+  }).join('')||'<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">无数据</td></tr>';
+  document.getElementById('rankingDetailModal').classList.add('active');
+}
+
+// Helper: get product list by filter
+function getProductsByFilter(filterFn){
+  const data=getFilteredData();
+  return data.filter(filterFn);
+}
+
+// Helper: add click handler to chart config
+function withChartClick(config, clickFn){
+  if(!config.options)config.options={};
+  config.options.onClick=(event,elements)=>{
+    if(elements.length>0)clickFn(elements[0].index, event);
+  };
+  config.options.hover={mode:'nearest',intersect:true};
+  return config;
+}
+
+// ========== REGISTER ALL CHART CLICK HANDLERS ==========
+function registerAllChartClickHandlers(){
+  const data=getFilteredData();
+  const latestMonth=ALL_MONTHS[ALL_MONTHS.length-1];
+
+  // 商品集中度 - click on rank bar
+  registerChartClick('chartConcentration',function(idx){
+    const chart=charts['chartConcentration'];
+    if(!chart)return;
+    const rank=chart.data.labels[idx];
+    const items=data.filter(d=>safeNum(d['小类排名'])===rank);
+    showProductList('排名 '+rank+' 的产品','小类排名='+rank,items);
+  });
+
+  // 品牌集中度 - click on brand bar
+  registerChartClick('chartBrandConcentration',function(idx){
+    const chart=charts['chartBrandConcentration'];
+    if(!chart)return;
+    const brand=chart.data.labels[idx];
+    const items=data.filter(d=>getBrand(d)===brand);
+    showProductList('品牌 '+brand+' 的产品','品牌='+brand,items);
+  });
+
+  // 价格分布 - click on price range bar
+  registerChartClick('chartPriceDistribution',function(idx){
+    const chart=charts['chartPriceDistribution'];
+    if(!chart)return;
+    const label=chart.data.labels[idx]; // like "$2-4"
+    const range=label.replace('$','').split('-').map(Number);
+    const lo=range[0],hi=range[1]||999;
+    const items=data.filter(d=>{const p=safeNum(d['Buybox价格']);return p>=lo&&p<hi});
+    showProductList('价格 '+label+' 的产品','价格区间: '+label,items);
+  });
+
+  // 上架时间 - click on time range bar
+  registerChartClick('chartListingTime',function(idx){
+    const chart=charts['chartListingTime'];
+    if(!chart)return;
+    const label=chart.data.labels[idx]; // like "1个月内"
+    const now=new Date();
+    const timeMap={'1个月内':30,'3个月内':90,'半年内':180,'1年内':365,'1年半':547,'2年内':730,'2年半':912,'3年内':1095,'3年以上':99999};
+    const days=timeMap[label]||99999;
+    const prevDays=[0,30,90,180,365,547,730,912,1095][['1个月内','3个月内','半年内','1年内','1年半','2年内','2年半','3年内','3年以上'].indexOf(label)]||0;
+    const items=data.filter(d=>{
+      const d2=Math.floor((now-new Date(d['上架日期']||''))/864e5);
+      return d2>=prevDays&&d2<days;
+    });
+    showProductList('上架时间 '+label+' 的产品','上架时间: '+label,items);
+  });
+
+  // 评分分布 - click on rating range bar
+  registerChartClick('chartRatingDistribution',function(idx){
+    const chart=charts['chartRatingDistribution'];
+    if(!chart)return;
+    const label=chart.data.labels[idx]; // like "4.0-4.2"
+    const range=label.split('-').map(Number);
+    const lo=range[0],hi=range[1]||5.01;
+    const items=data.filter(d=>{const r=safeNum(d['评分']);return r>=lo&&r<hi});
+    showProductList('评分 '+label+' 的产品','评分区间: '+label,items);
+  });
+
+  // 品牌上榜趋势 - click on brand trend line point
+  registerChartClick('chartBrandTrend',function(idx){
+    const chart=charts['chartBrandTrend'];
+    if(!chart)return;
+    const month=ALL_MONTHS[idx];
+    if(!month)return;
+    const items=data.filter(d=>d._dataMonth===month);
+    showProductList(monthKeyToLabel(month)+' 的产品','月份: '+monthKeyToLabel(month),items);
+  });
+
+  // 新入榜 vs 跌出榜 - click on entry/drop bar
+  registerChartClick('chartEntryDrop',function(idx){
+    if(ALL_MONTHS.length<2)return;
+    const curMonth=ALL_MONTHS[idx+1];
+    const prevMonth=ALL_MONTHS[idx];
+    if(!curMonth||!prevMonth)return;
+    const curASINs=new Set(data.filter(d=>d._dataMonth===curMonth).map(d=>d['父ASIN']||d['竞品ASIN']));
+    const prevASINs=new Set(data.filter(d=>d._dataMonth===prevMonth).map(d=>d['父ASIN']||d['竞品ASIN']));
+    const curDataMap={};data.filter(d=>d._dataMonth===curMonth).forEach(d=>{curDataMap[d['父ASIN']||d['竞品ASIN']]=d});
+    const prevDataMap={};data.filter(d=>d._dataMonth===prevMonth).forEach(d=>{prevDataMap[d['父ASIN']||d['竞品ASIN']]=d});
+    // Show both new entry and drop out
+    const entryItems=[];curASINs.forEach(a=>{if(!prevASINs.has(a)&&curDataMap[a])entryItems.push(curDataMap[a])});
+    const dropItems=[];prevASINs.forEach(a=>{if(!curASINs.has(a)&&prevDataMap[a])dropItems.push(prevDataMap[a])});
+    showProductList(monthKeyToLabel(prevMonth)+'→'+monthKeyToLabel(curMonth)+' 变化','新入榜'+entryItems.length+'个, 跌出'+dropItems.length+'个',[...entryItems,...dropItems]);
+  });
+
+  // 排名上升TOP20 - click on bar
+  registerChartClick('chartRankUp',function(idx){
+    const chart=charts['chartRankUp'];
+    if(!chart)return;
+    const asin=chart.data.labels[idx];
+    const items=data.filter(d=>(d['父ASIN']||d['竞品ASIN'])===asin);
+    showProductList('ASIN '+asin,'排名上升最快',items);
+  });
+
+  // 排名下降TOP20 - click on bar
+  registerChartClick('chartRankDown',function(idx){
+    const chart=charts['chartRankDown'];
+    if(!chart)return;
+    const asin=chart.data.labels[idx];
+    const items=data.filter(d=>(d['父ASIN']||d['竞品ASIN'])===asin);
+    showProductList('ASIN '+asin,'排名下降最快',items);
+  });
+
+  // 品牌排名变化 - click on brand change bar
+  registerChartClick('chartBrandChg',function(idx){
+    const chart=charts['chartBrandChg'];
+    if(!chart)return;
+    const brand=chart.data.labels[idx];
+    const items=data.filter(d=>getBrand(d)===brand);
+    showProductList('品牌 '+brand+' 的产品','品牌排名变化',items);
+  });
+
+  // 品牌上榜排名 - click on brand rank bar
+  registerChartClick('chartCompBrandRank',function(idx){
+    const chart=charts['chartCompBrandRank'];
+    if(!chart)return;
+    const brand=chart.data.labels[idx];
+    const items=data.filter(d=>getBrand(d)===brand);
+    showProductList('品牌 '+brand+' 的产品','品牌上榜数量',items);
+  });
+
+  // 品牌市场份额 - click on brand share doughnut
+  registerChartClick('chartCompBrandShare',function(idx){
+    const chart=charts['chartCompBrandShare'];
+    if(!chart)return;
+    const brand=chart.data.labels[idx];
+    const items=data.filter(d=>getBrand(d)===brand);
+    showProductList('品牌 '+brand+' 的产品','品牌市场份额',items);
+  });
+
+  // 品牌定位矩阵 - click on bubble
+  registerChartClick('chartCompPosition',function(idx){
+    const chart=charts['chartCompPosition'];
+    if(!chart)return;
+    const brand=chart.data.datasets[0].data[idx]?.label;
+    if(!brand)return;
+    const items=data.filter(d=>getBrand(d)===brand);
+    showProductList('品牌 '+brand+' 的产品','品牌定位矩阵',items);
+  });
+
+  // 价格带×品牌分布 - click on stacked bar
+  registerChartClick('chartCompPriceBrand',function(idx){
+    const chart=charts['chartCompPriceBrand'];
+    if(!chart)return;
+    const brand=chart.data.labels[idx];
+    const items=data.filter(d=>getBrand(d)===brand);
+    showProductList('品牌 '+brand+' 的产品','价格带×品牌',items);
+  });
+
+  // 小类竞争激烈度 - click on subcategory bar
+  registerChartClick('chartCompIntensity',function(idx){
+    const chart=charts['chartCompIntensity'];
+    if(!chart)return;
+    const subcat=chart.data.labels[idx];
+    const items=data.filter(d=>d['小类']===subcat);
+    showProductList('小类 '+subcat+' 的产品','小类竞争激烈度',items);
+  });
+
+  // 属性分布 charts
+  ['chartAttrStyle','chartAttrFabric','chartAttr1','chartAttr2'].forEach(chartId=>{
+    registerChartClick(chartId,function(idx){
+      const chart=charts[chartId];
+      if(!chart)return;
+      const attrVal=chart.data.labels[idx];
+      const attrKey=chartId==='chartAttrStyle'?'风格':chartId==='chartAttrFabric'?'面料':chartId==='chartAttr1'?'属性1':'属性2';
+      const items=data.filter(d=>d[attrKey]===attrVal);
+      showProductList(attrKey+'='+attrVal+' 的产品',attrKey+': '+attrVal,items);
+    });
+  });
+
+  // 各属性平均排名 - click on horizontal bar
+  registerChartClick('chartAttrAvgRank',function(idx){
+    const chart=charts['chartAttrAvgRank'];
+    if(!chart)return;
+    const label=chart.data.labels[idx]; // like "Casual(风格)"
+    const match=label.match(/(.+?)\((.+?)\)/);
+    if(!match)return;
+    const val=match[1],key=match[2];
+    const items=data.filter(d=>d[key]===val);
+    showProductList(key+'='+val+' 的产品',key+': '+val,items);
+  });
+
+  // 价格梯度×排名 - click on stacked bar
+  registerChartClick('chartPriceRankDist',function(idx){
+    const chart=charts['chartPriceRankDist'];
+    if(!chart)return;
+    const priceGrad=chart.data.labels[idx];
+    const items=data.filter(d=>d['价格梯度']===priceGrad);
+    showProductList('价格梯度 '+priceGrad+' 的产品','价格梯度: '+priceGrad,items);
+  });
+}
+
+// ========== TAB 2: COMPARE ==========
+function updateCompareCharts(){
+  const baseMonthKey=monthStrToKey(document.getElementById('fBaseMonth').value);
+  const compareMonthKey=monthStrToKey(document.getElementById('fCompareMonth').value);
+
+  // Retention trend across all consecutive months
+  const allMonthPairs=[];
+  for(let i=1;i<ALL_MONTHS.length;i++){
+    allMonthPairs.push({prev:ALL_MONTHS[i-1],cur:ALL_MONTHS[i]});
+  }
+
+  // Filter by subcat/brand if selected
+  let data=ALL_DATA;
+  const cs=document.getElementById('fCompareSubCat');if(cs&&cs.value)data=data.filter(d=>d['小类']===cs.value);
+  const cb=document.getElementById('fCompareBrand');if(cb&&cb.value){const lc=cb.value.toLowerCase();data=data.filter(d=>getBrand(d).toLowerCase()===lc)}
+
+  // Calculate retention rates
+  const retainRates=[];
+  allMonthPairs.forEach(pair=>{
+    const prevASINs=new Set(data.filter(d=>d._dataMonth===pair.prev).map(d=>d['父ASIN']||d['竞品ASIN']).filter(v=>v));
+    const curASINs=new Set(data.filter(d=>d._dataMonth===pair.cur).map(d=>d['父ASIN']||d['竞品ASIN']).filter(v=>v));
+    let retain=0;
+    curASINs.forEach(a=>{if(prevASINs.has(a))retain++});
+    const rate=prevASINs.size>0?Math.round(retain/prevASINs.size*1000)/10:0;
+    retainRates.push({label:monthKeyToLabel(pair.cur),rate,prevCount:prevASINs.size,curCount:curASINs.size,retain});
+  });
+
+  // Stats for selected base/compare months
+  if(baseMonthKey&&compareMonthKey){
+    const baseASINs=new Set(data.filter(d=>d._dataMonth===baseMonthKey).map(d=>d['父ASIN']||d['竞品ASIN']).filter(v=>v));
+    const compareASINs=new Set(data.filter(d=>d._dataMonth===compareMonthKey).map(d=>d['父ASIN']||d['竞品ASIN']).filter(v=>v));
+    let retain=0;compareASINs.forEach(a=>{if(baseASINs.has(a))retain++});
+    const newEntry=[...compareASINs].filter(a=>a&&!baseASINs.has(a)).length;
+    const dropOut=[...baseASINs].filter(a=>a&&!compareASINs.has(a)).length;
+    document.getElementById('cmpBaseCount').textContent=baseASINs.size;
+    document.getElementById('cmpCompareCount').textContent=compareASINs.size;
+    document.getElementById('cmpRetainCount').textContent=retain;
+    document.getElementById('cmpRetainRate').textContent=baseASINs.size>0?Math.round(retain/baseASINs.size*100)+'%':'-';
+    document.getElementById('cmpNewEntry').textContent=newEntry;
+    document.getElementById('cmpDropOut').textContent=dropOut;
+  }
+
+  // Retention trend chart
+  makeChart('chartRetainTrend',{type:'line',data:{labels:retainRates.map(r=>r.label),datasets:[{label:'留存率(%)',data:retainRates.map(r=>r.rate),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.1)',fill:true,tension:.3,borderWidth:2,pointRadius:4,pointBackgroundColor:'#667eea',pointBorderColor:'#fff',pointBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{beginAtZero:true,max:100,title:{display:true,text:'留存率(%)'}}},plugins:{tooltip:{callbacks:{label:ctx=>ctx.raw+'%'}}}}});
+
+  // Entry vs Drop chart
+  const entryDropData=[];
+  allMonthPairs.forEach(pair=>{
+    const prevASINs=new Set(data.filter(d=>d._dataMonth===pair.prev).map(d=>d['父ASIN']||d['竞品ASIN']).filter(v=>v));
+    const curASINs=new Set(data.filter(d=>d._dataMonth===pair.cur).map(d=>d['父ASIN']||d['竞品ASIN']).filter(v=>v));
+    let newEntry=0,dropOut=0;
+    curASINs.forEach(a=>{if(a&&!prevASINs.has(a))newEntry++});
+    prevASINs.forEach(a=>{if(a&&!curASINs.has(a))dropOut++});
+    entryDropData.push({label:monthKeyToLabel(pair.cur),newEntry,dropOut});
+  });
+  makeChart('chartEntryDrop',{type:'bar',data:{labels:entryDropData.map(e=>e.label),datasets:[{label:'新入榜',data:entryDropData.map(e=>e.newEntry),backgroundColor:'rgba(67,233,123,.7)',borderRadius:4},{label:'跌出榜',data:entryDropData.map(e=>e.dropOut),backgroundColor:'rgba(250,112,154,.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{beginAtZero:true}}}});
+
+  // Brand trend
+  const brandMonthData={};
+  data.forEach(d=>{const b=getBrand(d);if(!b||b==='暂无'||!/^[a-zA-Z]/.test(b))return;if(!brandMonthData[b])brandMonthData[b]={};ALL_MONTHS.forEach(m=>{brandMonthData[b][m]=(brandMonthData[b][m]||0)+1})});
+  const topBrands=Object.entries(brandMonthData).map(([k,v])=>({k,total:Object.values(v).reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total).slice(0,6).map(e=>e.k);
+  const BRAND_COLORS=['#667eea','#fa709a','#43e97b','#fee140','#4facfe','#f093fb'];
+  makeChart('chartBrandTrend',{type:'line',data:{labels:ALL_MONTHS.map(m=>monthKeyToLabel(m)),datasets:topBrands.map((b,i)=>({label:b,data:ALL_MONTHS.map(m=>brandMonthData[b]?.[m]||0),borderColor:BRAND_COLORS[i],backgroundColor:BRAND_COLORS[i]+'10',tension:.3,borderWidth:2,pointRadius:3}))},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{beginAtZero:true}}}});
+
+  // Price change (stacked bar)
+  const priceZones=['$0-10','$10-20','$20-30','$30-50','$50+'];
+  const priceMonthData=ALL_MONTHS.map(m=>{const counts=priceZones.map(()=>0);data.filter(d=>d._dataMonth===m).forEach(d=>{const p=safeNum(d['Buybox价格']);if(p<=0)return;if(p<10)counts[0]++;else if(p<20)counts[1]++;else if(p<30)counts[2]++;else if(p<50)counts[3]++;else counts[4]++});return counts});
+  makeChart('chartPriceChange',{type:'bar',data:{labels:ALL_MONTHS.map(m=>monthKeyToLabel(m)),datasets:priceZones.map((z,i)=>({label:z,data:ALL_MONTHS.map((_,mi)=>priceMonthData[mi][i]),backgroundColor:getColor(i),borderRadius:3}))},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{stacked:true,beginAtZero:true}}}});
+
+  // Average rank trend (for products that appear in consecutive months)
+  const avgRankData=[];
+  for(let i=1;i<ALL_MONTHS.length;i++){
+    const prev=ALL_MONTHS[i-1],cur=ALL_MONTHS[i];
+    const prevRanks={};data.filter(d=>d._dataMonth===prev).forEach(d=>{prevRanks[d['父ASIN']||d['竞品ASIN']]=safeNum(d['小类排名'])});
+    const curItems=data.filter(d=>d._dataMonth===cur);
+    const ranks=curItems.filter(d=>prevRanks[d['父ASIN']||d['竞品ASIN']]>0).map(d=>safeNum(d['小类排名']));
+    avgRankData.push({label:monthKeyToLabel(cur),avg:ranks.length?Math.round(avg(ranks)*10)/10:0,count:ranks.length});
+  }
+  makeChart('chartAvgRankTrend',{type:'line',data:{labels:avgRankData.map(r=>r.label),datasets:[{label:'平均排名',data:avgRankData.map(r=>r.avg),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.1)',fill:true,tension:.3,borderWidth:2,pointRadius:4,pointBackgroundColor:'#667eea',pointBorderColor:'#fff',pointBorderWidth:2,yAxisID:'y'},{label:'在榜产品数',data:avgRankData.map(r=>r.count),borderColor:'#fa709a',backgroundColor:'transparent',tension:.3,borderWidth:2,borderDash:[5,5],pointRadius:3,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{reverse:true,title:{display:true,text:'平均排名'},min:1},y1:{position:'right',beginAtZero:true,title:{display:true,text:'产品数'},grid:{display:false}}}}});
+
+  // Heatmap
+  renderHeatmap(data,ALL_MONTHS.length>=2?ALL_MONTHS[ALL_MONTHS.length-2]:null,ALL_MONTHS[ALL_MONTHS.length-1]);
+}
+
+function renderHeatmap(data,prevMonth,curMonth){
+  const container=document.getElementById('heatmapContainer');
+  if(!prevMonth||!curMonth){container.innerHTML='<p style="text-align:center;color:#999;padding:20px">需要至少两个月数据才能显示热力图</p>';return}
+  const ranges=['1-10','11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100'];
+  const matrix=Array.from({length:10},()=>Array(10).fill(0));
+  const prevRanks={},curRanks={};
+  data.filter(d=>d._dataMonth===prevMonth).forEach(d=>{prevRanks[d['父ASIN']||d['竞品ASIN']]=safeNum(d['小类排名'])});
+  data.filter(d=>d._dataMonth===curMonth).forEach(d=>{curRanks[d['父ASIN']||d['竞品ASIN']]=safeNum(d['小类排名'])});
+  Object.keys(curRanks).forEach(asin=>{
+    const pr=prevRanks[asin],cr=curRanks[asin];
+    if(pr>0&&cr>0){const pi=Math.min(Math.floor((pr-1)/10),9);const ci=Math.min(Math.floor((cr-1)/10),9);matrix[pi][ci]++}
+  });
+  const maxVal=Math.max(...matrix.flat(),1);
+  let html=`<div style="display:grid;grid-template-columns:60px repeat(10,1fr);gap:2px;max-width:700px;margin:10px auto"><div class="heatmap-label">上月↓ 本月→</div>`;
+  ranges.forEach(r=>{html+=`<div class="heatmap-label">${r}</div>`});
+  matrix.forEach((row,i)=>{
+    html+=`<div class="heatmap-label" style="text-align:right;padding-right:8px">${ranges[i]}</div>`;
+    row.forEach(v=>{
+      const intensity=v/maxVal;
+      const bg=v===0?'#f5f5f5':`rgba(102,126,234,${0.1+intensity*0.9})`;
+      const color=intensity>0.5?'#fff':'var(--text)';
+      html+=`<div class="heatmap-cell" style="background:${bg};color:${color}">${v||''}</div>`;
+    });
+  });
+  html+='</div>';
+  container.innerHTML=html;
+}
+
+// ========== TAB 3: RANK CHANGE ==========
+function updateChangeCharts(){
+  const baseMonthKey=monthStrToKey(document.getElementById('fChgBaseMonth')?.value||'');
+  const compareMonthKey=monthStrToKey(document.getElementById('fChgCompareMonth')?.value||'');
+  if(!baseMonthKey||!compareMonthKey)return;
+
+  let data=ALL_DATA;
+  const cs=document.getElementById('fChgSubCat');if(cs&&cs.value)data=data.filter(d=>d['小类']===cs.value);
+  const cb=document.getElementById('fChgBrand');if(cb&&cb.value){const lc=cb.value.toLowerCase();data=data.filter(d=>getBrand(d).toLowerCase()===lc)}
+  const threshold=parseInt(document.getElementById('fChgThreshold')?.value||'0');
+
+  const prevRanks={},curRanks={},prevData={},curData={};
+  data.filter(d=>d._dataMonth===baseMonthKey).forEach(d=>{prevRanks[d['父ASIN']||d['竞品ASIN']]=safeNum(d['小类排名']);prevData[d['父ASIN']||d['竞品ASIN']]=d});
+  data.filter(d=>d._dataMonth===compareMonthKey).forEach(d=>{curRanks[d['父ASIN']||d['竞品ASIN']]=safeNum(d['小类排名']);curData[d['父ASIN']||d['竞品ASIN']]=d});
+
+  const changes=[],newEntries=[],dropOuts=[];
+  // Products in both months
+  Object.keys(curRanks).forEach(asin=>{
+    if(prevRanks[asin]>0&&curRanks[asin]>0){
+      const change=prevRanks[asin]-curRanks[asin];
+      if(Math.abs(change)>=threshold)changes.push({asin,brand:getBrand(curData[asin]),subcat:curData[asin]['小类'],price:curData[asin]['Buybox价格'],rating:curData[asin]['评分'],reviews:curData[asin]['父体Rating数'],prevRank:prevRanks[asin],curRank:curRanks[asin],change,date:curData[asin]['上架日期'],link:curData[asin]['链接']});
+    }
+  });
+  // New entries
+  Object.keys(curRanks).forEach(asin=>{
+    if((!prevRanks[asin]||prevRanks[asin]===0)&&curRanks[asin]>0){
+      newEntries.push({asin,brand:getBrand(curData[asin]),subcat:curData[asin]['小类'],price:curData[asin]['Buybox价格'],rating:curData[asin]['评分'],reviews:curData[asin]['父体Rating数'],rank:curRanks[asin],date:curData[asin]['上架日期'],link:curData[asin]['链接']});
+    }
+  });
+  // Drop outs
+  Object.keys(prevRanks).forEach(asin=>{
+    if(prevRanks[asin]>0&&(!curRanks[asin]||curRanks[asin]===0)){
+      dropOuts.push({asin,brand:getBrand(prevData[asin]),subcat:prevData[asin]['小类'],price:prevData[asin]['Buybox价格'],rating:prevData[asin]['评分'],reviews:prevData[asin]['父体Rating数'],rank:prevRanks[asin],link:prevData[asin]['链接']});
+    }
+  });
+
+  // Rank up TOP20
+  const rankUp=changes.filter(c=>c.change>0).sort((a,b)=>b.change-a.change).slice(0,20);
+  makeChart('chartRankUp',{type:'bar',data:{labels:rankUp.map(c=>c.asin.slice(0,12)),datasets:[{label:'上升名次',data:rankUp.map(c=>c.change),backgroundColor:'rgba(67,233,123,.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,title:{display:true,text:'上升名次'}}}}});
+
+  // Rank down TOP20
+  const rankDown=changes.filter(c=>c.change<0).sort((a,b)=>a.change-b.change).slice(0,20);
+  makeChart('chartRankDown',{type:'bar',data:{labels:rankDown.map(c=>c.asin.slice(0,12)),datasets:[{label:'下降名次',data:rankDown.map(c=>Math.abs(c.change)),backgroundColor:'rgba(250,112,154,.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,title:{display:true,text:'下降名次'}}}}});
+
+  // Change distribution
+  const distBuckets={'上升30+':0,'上升10-30':0,'上升1-10':0,'不变':0,'下降1-10':0,'下降10-30':0,'下降30+':0,'新入榜':newEntries.length,'跌出榜':dropOuts.length};
+  changes.forEach(c=>{if(c.change>=30)distBuckets['上升30+']++;else if(c.change>=10)distBuckets['上升10-30']++;else if(c.change>0)distBuckets['上升1-10']++;else if(c.change===0)distBuckets['不变']++;else if(c.change>=-10)distBuckets['下降1-10']++;else if(c.change>=-30)distBuckets['下降10-30']++;else distBuckets['下降30+']++});
+  makeChart('chartChgDist',{type:'bar',data:{labels:Object.keys(distBuckets),datasets:[{data:Object.values(distBuckets),backgroundColor:['#43e97b','#4facfe','#667eea','#9ca3af','#fee140','#f093fb','#fa709a','#dcfce7','#fce7f3'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{beginAtZero:true}}}});
+
+  // Brand change comparison
+  const brandChgMap={};changes.forEach(c=>{const b=c.brand;if(!b||!/^[a-zA-Z]/.test(b))return;if(!brandChgMap[b])brandChgMap[b]={up:0,down:0};if(c.change>0)brandChgMap[b].up++;else brandChgMap[b].down++});
+  newEntries.forEach(e=>{const b=e.brand;if(!b||!/^[a-zA-Z]/.test(b))return;if(!brandChgMap[b])brandChgMap[b]={up:0,down:0,newEntry:0};brandChgMap[b].newEntry=(brandChgMap[b].newEntry||0)+1});
+  dropOuts.forEach(e=>{const b=e.brand;if(!b||!/^[a-zA-Z]/.test(b))return;if(!brandChgMap[b])brandChgMap[b]={up:0,down:0,dropOut:0};brandChgMap[b].dropOut=(brandChgMap[b].dropOut||0)+1});
+  const brandChgEntries=Object.entries(brandChgMap).sort((a,b)=>(b[1].up+b[1].newEntry)-(a[1].up+a[1].newEntry)).slice(0,10);
+  makeChart('chartBrandChg',{type:'bar',data:{labels:brandChgEntries.map(e=>e[0]),datasets:[{label:'上升',data:brandChgEntries.map(e=>e[1].up),backgroundColor:'rgba(67,233,123,.7)',borderRadius:3},{label:'下降',data:brandChgEntries.map(e=>e[1].down),backgroundColor:'rgba(250,112,154,.7)',borderRadius:3},{label:'新入榜',data:brandChgEntries.map(e=>e[1].newEntry||0),backgroundColor:'rgba(79,172,254,.7)',borderRadius:3},{label:'跌出',data:brandChgEntries.map(e=>e[1].dropOut||0),backgroundColor:'rgba(254,225,64,.7)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true}}}});
+
+  // Tables
+  document.getElementById('newEntryCount').textContent=newEntries.length;
+  document.getElementById('newEntryBody').innerHTML=newEntries.sort((a,b)=>a.rank-b.rank).slice(0,50).map(d=>`<tr><td><strong>${d.rank}</strong></td><td><a class="link-btn" href="${d.link||'https://www.amazon.com/dp/'+d.asin}" target="_blank">${d.asin}</a></td><td>${d.brand}</td><td>${d.subcat}</td><td>$${d.price}</td><td>${d.rating}</td><td>${safeNum(d.reviews).toLocaleString()}</td><td>${formatDateShort(d.date)}</td><td>${d.link?'<a class="link-btn" href="'+d.link+'" target="_blank">查看</a>':'-'}</td></tr>`).join('');
+  document.getElementById('dropOutCount').textContent=dropOuts.length;
+  document.getElementById('dropOutBody').innerHTML=dropOuts.sort((a,b)=>a.rank-b.rank).slice(0,50).map(d=>`<tr><td><strong>${d.rank}</strong></td><td><a class="link-btn" href="${d.link||'https://www.amazon.com/dp/'+d.asin}" target="_blank">${d.asin}</a></td><td>${d.brand}</td><td>${d.subcat}</td><td>$${d.price}</td><td>${d.rating}</td><td>${safeNum(d.reviews).toLocaleString()}</td><td>${d.link?'<a class="link-btn" href="'+d.link+'" target="_blank">查看</a>':'-'}</td></tr>`).join('');
+}
+
+// ========== TAB 4: COMPETITION ==========
+function updateCompCharts(){
+  const compMonthKey=monthStrToKey(document.getElementById('fCompMonth')?.value||'');
+  let data=ALL_DATA;
+  if(compMonthKey)data=data.filter(d=>d._dataMonth===compMonthKey);
+  const cs=document.getElementById('fCompSubCat');if(cs&&cs.value)data=data.filter(d=>d['小类']===cs.value);
+
+  const brandProducts={};const brandSales={};
+  data.forEach(d=>{const b=getBrand(d);if(!b||b==='暂无'||!/^[a-zA-Z]/.test(b))return;if(!brandProducts[b])brandProducts[b]=new Set();brandProducts[b].add(d['父ASIN']||d['竞品ASIN']);brandSales[b]=(brandSales[b]||0)+d._dataMonth?safeNum(Object.values(d.sales||{}).reduce((a,b)=>a+b,0)):0});
+
+  const totalProducts=[...new Set(data.map(d=>d['父ASIN']||d['竞品ASIN']))].length;
+  const sortedBrands=Object.entries(brandProducts).map(([k,v])=>({k,count:v.size})).sort((a,b)=>b.count-a.count);
+  const brandCount=sortedBrands.length;
+
+  // CR5, CR10
+  const top5Count=sortedBrands.slice(0,5).reduce((s,e)=>s+e.count,0);
+  const top10Count=sortedBrands.slice(0,10).reduce((s,e)=>s+e.count,0);
+  const cr5=totalProducts>0?Math.round(top5Count/totalProducts*1000)/10:0;
+  const cr10=totalProducts>0?Math.round(top10Count/totalProducts*1000)/10:0;
+
+  // HHI
+  const totalForHHI=sortedBrands.reduce((s,e)=>s+e.count,0);
+  const hhi=sortedBrands.reduce((s,e)=>{const share=e.count/totalForHHI*100;return s+share*share},0);
+  const hhiLevel=hhi<1500?'竞争型':hhi<2500?'中度集中':'高度集中';
+
+  document.getElementById('kpiBrandCount').textContent=brandCount;
+  document.getElementById('kpiCR5').textContent=cr5+'%';
+  document.getElementById('kpiCR10').textContent=cr10+'%';
+  document.getElementById('kpiHHI').textContent=Math.round(hhi);
+  document.getElementById('kpiHHILevel').textContent=hhiLevel;
+
+  // Brand rank chart (TOP15)
+  const top15=sortedBrands.slice(0,15);
+  makeChart('chartCompBrandRank',{type:'bar',data:{labels:top15.map(e=>e.k),datasets:[{data:top15.map(e=>e.count),backgroundColor:top15.map((_,i)=>getColor(i)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}}});
+
+  // Brand share (doughnut)
+  const totalSalesForShare=Object.values(brandSales).reduce((a,b)=>a+b,0);
+  const shareEntries=sortedBrands.slice(0,8).map(([k])=>({k,sales:brandSales[k]||0}));
+  if(totalSalesForShare>0){
+    makeChart('chartCompBrandShare',{type:'doughnut',data:{labels:shareEntries.map(e=>e.k),datasets:[{data:shareEntries.map(e=>Math.round(e.sales/totalSalesForShare*1000)/10),backgroundColor:shareEntries.map((_,i)=>getColor(i)),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'},tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.raw+'%'}}}}});
+  }
+
+  // Position matrix (bubble)
+  const posData=sortedBrands.slice(0,15).map(e=>{
+    const items=data.filter(d=>getBrand(d)===e.k);
+    const avgPrice=avg(items.map(d=>safeNum(d['Buybox价格'])).filter(v=>v>0));
+    const avgRank=avg(items.map(d=>safeNum(d['小类排名'])).filter(v=>v>0));
+    return{x:Math.round(avgPrice*100)/100,y:Math.round(avgRank*10)/10,r:Math.min(Math.max(Math.sqrt(e.count)*3,4),20),label:e.k};
+  });
+  makeChart('chartCompPosition',{type:'bubble',data:{datasets:[{label:'品牌',data:posData,backgroundColor:posData.map((_,i)=>getColor(i)+'88'),borderColor:posData.map((_,i)=>getColor(i)),borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${posData[ctx.dataIndex].label} | $${ctx.raw.x} | 排名${ctx.raw.y} | ${sortedBrands[ctx.dataIndex]?.count||0}款`}}},scales:{x:{title:{display:true,text:'平均价格 (USD)'},grid:{color:'#f0f0f0'}},y:{title:{display:true,text:'平均排名'},reverse:true,grid:{color:'#f0f0f0'}}}}});
+
+  // Price x Brand (stacked bar)
+  const priceZones=['$0-10','$10-20','$20-30','$30-50','$50+'];
+  const top8Brands=sortedBrands.slice(0,8).map(e=>e.k);
+  const pbDatasets=priceZones.map((z,zi)=>({label:z,data:top8Brands.map(b=>{let count=0;data.filter(d=>getBrand(d)===b).forEach(d=>{const p=safeNum(d['Buybox价格']);if(p<=0)return;if(zi===0&&p<10)count++;else if(zi===1&&p>=10&&p<20)count++;else if(zi===2&&p>=20&&p<30)count++;else if(zi===3&&p>=30&&p<50)count++;else if(zi===4&&p>=50)count++});return count}),backgroundColor:getColor(zi),borderRadius:3}));
+  makeChart('chartCompPriceBrand',{type:'bar',data:{labels:top8Brands,datasets:pbDatasets},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}});
+
+  // Competition intensity by subcategory
+  const subCatIntensity={};
+  data.forEach(d=>{const c=d['小类'];if(!c||c==='暂无')return;if(!subCatIntensity[c])subCatIntensity[c]={brands:new Set(),products:new Set()};subCatIntensity[c].brands.add(getBrand(d));subCatIntensity[c].products.add(d['父ASIN']||d['竞品ASIN'])});
+  const intensityEntries=Object.entries(subCatIntensity).map(([k,v])=>({k,brands:v.brands.size,products:v.products.size,intensity:v.brands.size*v.products.size})).sort((a,b)=>b.intensity-a.intensity).slice(0,12);
+  makeChart('chartCompIntensity',{type:'bar',data:{labels:intensityEntries.map(e=>e.k.length>20?e.k.slice(0,20)+'...':e.k),datasets:[{label:'品牌数',data:intensityEntries.map(e=>e.brands),backgroundColor:'rgba(102,126,234,.7)',borderRadius:4,yAxisID:'y'},{label:'产品数',data:intensityEntries.map(e=>e.products),type:'line',borderColor:'#fa709a',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:4,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{position:'left',beginAtZero:true,title:{display:true,text:'品牌数'}},y1:{position:'right',beginAtZero:true,title:{display:true,text:'产品数'},grid:{display:false}}}}});
+}
+
+// ========== TAB 5: ATTRIBUTE ==========
+function updateAttrCharts(){
+  const attrMonthKey=monthStrToKey(document.getElementById('fAttrMonth')?.value||'');
+  let data=ALL_DATA;
+  if(attrMonthKey)data=data.filter(d=>d._dataMonth===attrMonthKey);
+  const cs=document.getElementById('fAttrSubCat');if(cs&&cs.value)data=data.filter(d=>d['小类']===cs.value);
+  const cb=document.getElementById('fAttrBrand');if(cb&&cb.value){const lc=cb.value.toLowerCase();data=data.filter(d=>getBrand(d).toLowerCase()===lc)}
+
+  // Attribute distribution charts
+  const renderAttrChart=(canvasId,key)=>{
+    const map={};data.forEach(d=>{const v=d[key];if(v&&v!=='暂无'&&v!=='无'&&v!=='NaN'&&/[a-zA-Z\u4e00-\u9fa5]/.test(v)){if(!map[v])map[v]=0;map[v]++}});
+    const entries=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    if(entries.length===0){destroyChart(canvasId);return}
+    makeChart(canvasId,{type:'bar',data:{labels:entries.map(e=>e[0].length>15?e[0].slice(0,15)+'...':e[0]),datasets:[{data:entries.map(e=>e[1]),backgroundColor:entries.map((_,i)=>getColor(i)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{beginAtZero:true}}}});
+  };
+  renderAttrChart('chartAttrStyle','风格');
+  renderAttrChart('chartAttrFabric','面料');
+  renderAttrChart('chartAttr1','属性1');
+  renderAttrChart('chartAttr2','属性2');
+
+  // Average rank by attribute
+  const attrKeys=['风格','面料','属性1','属性2'];
+  const attrRankData=[];
+  attrKeys.forEach(key=>{
+    const map={};data.forEach(d=>{const v=d[key];const r=safeNum(d['小类排名']);if(v&&v!=='暂无'&&v!=='无'&&r>0){if(!map[v])map[v]=[];map[v].push(r)}});
+    Object.entries(map).forEach(([k,v])=>{if(v.length>=2)attrRankData.push({attr:key,val:k,avgRank:Math.round(avg(v)*10)/10,count:v.length})});
+  });
+  attrRankData.sort((a,b)=>a.avgRank-b.avgRank);
+  const topAttrRank=attrRankData.slice(0,20);
+  if(topAttrRank.length>0){
+    makeChart('chartAttrAvgRank',{type:'bar',data:{labels:topAttrRank.map(e=>`${e.val}(${e.attr})`),datasets:[{data:topAttrRank.map(e=>e.avgRank),backgroundColor:topAttrRank.map(e=>{const colors={'风格':'#667eea','面料':'#4facfe','属性1':'#43e97b','属性2':'#fee140'};return colors[e.attr]||getColor(0)}),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{title:{display:true,text:'平均排名'},reverse:true}}}});
+  }
+
+  // Price gradient x rank distribution
+  const priceGrads=['$0-10','$10-20','$20-30','$30-50','$50+'];
+  const rankTiers=['1-10','11-30','31-50','51-100'];
+  const tierColors=['#43e97b','#4facfe','#fee140','#fa709a'];
+  const prData=rankTiers.map((tier,ti)=>{
+    const[lo,hi]=tier.split('-').map(Number);
+    return{label:tier,data:priceGrads.map(pg=>{const[plo,phi]=pg==='$50+'?[50,Infinity]:pg.replace('$','').split('-').map(Number);return data.filter(d=>{const p=safeNum(d['Buybox价格']);const r=safeNum(d['小类排名']);return p>=plo&&(phi===Infinity?p>=plo:p<phi)&&r>=lo&&r<=hi}).length}),backgroundColor:tierColors[ti],borderRadius:3};
+  });
+  makeChart('chartPriceRankDist',{type:'bar',data:{labels:priceGrads,datasets:prData},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}});
+}
+
+// ========== TAB 6: DETAIL ==========
+function updateDetailTable(){
+  let data=ALL_DATA;
+  const dm=document.getElementById('fDetailMonth');if(dm&&dm.value)data=data.filter(d=>d._dataMonth===monthStrToKey(dm.value));
+  const ds=document.getElementById('fDetailSubCat');if(ds&&ds.value)data=data.filter(d=>d['小类']===ds.value);
+  const db=document.getElementById('fDetailBrand');if(db&&db.value){const lc=db.value.toLowerCase();data=data.filter(d=>getBrand(d).toLowerCase()===lc)}
+  const dr=document.getElementById('fDetailRank');
+  if(dr&&dr.value){
+    const[lo,hi]=dr.value.split('-').map(Number);
+    data=data.filter(d=>{const r=safeNum(d['小类排名']);return r>=lo&&r<=hi});
+  }
+  const dc=document.getElementById('fDetailChange');
+
+  // Calculate change info for each product
+  const latestMonth=ALL_MONTHS[ALL_MONTHS.length-1];
+  const prevMonth=ALL_MONTHS.length>=2?ALL_MONTHS[ALL_MONTHS.length-2]:'';
+  const prevRanks={};
+  if(prevMonth)ALL_DATA.filter(d=>d._dataMonth===prevMonth).forEach(d=>{prevRanks[d['父ASIN']||d['竞品ASIN']]=safeNum(d['小类排名'])});
+
+  document.getElementById('detailCount').textContent=data.length;
+  const sorted=[...data].sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名']));
+  document.getElementById('detailBody').innerHTML=sorted.slice(0,300).map(d=>{
+    const asin=d['父ASIN']||d['竞品ASIN']||'';
+    const rank=safeNum(d['小类排名']);
+    const prevRank=prevRanks[asin]||0;
+    let changeHtml='-';
+    if(prevRank>0&&rank>0){
+      const diff=prevRank-rank;
+      if(diff>0)changeHtml=`<span style="color:#166534;font-weight:600">↑${diff}</span>`;
+      else if(diff<0)changeHtml=`<span style="color:#be185d;font-weight:600">↓${Math.abs(diff)}</span>`;
+      else changeHtml='<span style="color:#9ca3af">→0</span>';
+    }else if(rank>0&&!prevRank){
+      changeHtml='<span class="badge badge-new">新入榜</span>';
+    }
+    const latestSales=latestMonth?safeNum(d.sales?.[latestMonth]):0;
+    // Filter by change direction
+    if(dc&&dc.value){
+      if(dc.value==='up'&&!(prevRank>0&&rank>0&&prevRank>rank))return'';
+      if(dc.value==='down'&&!(prevRank>0&&rank>0&&prevRank<rank))return'';
+      if(dc.value==='new'&&!(rank>0&&!prevRank))return'';
+      if(dc.value==='out')return''; // dropouts not in current data
+    }
+    return`<tr><td><strong>${rank||'-'}</strong></td><td>${changeHtml}</td><td><a class="link-btn" href="${d['链接']||'https://www.amazon.com/dp/'+asin}" target="_blank">${asin}</a></td><td>${getBrand(d)}</td><td>${d['小类']||'-'}</td><td>$${d['Buybox价格']}</td><td>${d['评分']}</td><td>${safeNum(d['父体Rating数']).toLocaleString()}</td><td>${latestSales.toLocaleString()}</td><td>${formatDateShort(d['上架日期'])}</td><td>${d._monthsOnList||'-'}</td><td>${d['链接']?'<a class="link-btn" href="'+d['链接']+'" target="_blank">查看</a>':'-'}</td></tr>`;
+  }).join('');
+}
+
+// ========== UTILITIES ==========
+function formatDateShort(val){
+  if(!val||val==='暂无')return'-';
+  const s=String(val).trim();
+  if(/^\d{4,5}$/.test(s)){const n=parseInt(s);if(n>30000&&n<60000){const d=new Date((n-25569)*864e5);if(!isNaN(d.getTime()))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}return'-'}
+  if(/20\d{2}[-/]/.test(s)){const d=new Date(s.split(' ')[0]);if(!isNaN(d.getTime()))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+  return s.length>10?s.slice(0,10):s;
+}
+
+// ========== AI CHAT ==========
+let chatHistory=[];
+let isGenerating=false;
+
+function toggleAIPanel(){const panel=document.getElementById('aiPanel');const btn=document.getElementById('aiToggleBtn');panel.classList.toggle('open');btn.classList.toggle('active');document.body.classList.toggle('ai-open');setTimeout(resizeAllCharts,350)}
+function toggleSettings(){const settings=document.getElementById('aiSettings');settings.classList.toggle('open');const saved=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');if(saved.apiUrl)document.getElementById('aiApiUrl').value=saved.apiUrl;if(saved.apiKey)document.getElementById('aiApiKey').value=saved.apiKey;if(saved.model)document.getElementById('aiModel').value=saved.model}
+function saveAISettings(){const apiUrl=document.getElementById('aiApiUrl').value.trim();const apiKey=document.getElementById('aiApiKey').value.trim();const model=document.getElementById('aiModel').value.trim();if(!apiUrl||!apiKey||!model){showSettingsStatus('请填写所有字段','error');return}localStorage.setItem('bsrAiSettings',JSON.stringify({apiUrl,apiKey,model}));showSettingsStatus('✓ 设置已保存','success')}
+function showSettingsStatus(msg,type){const el=document.getElementById('aiSettingsStatus');el.textContent=msg;el.className='ai-settings-status '+type;setTimeout(()=>{el.className='ai-settings-status'},3000)}
+
+async function testAIConnection(){
+  const apiUrl=document.getElementById('aiApiUrl').value.trim();const apiKey=document.getElementById('aiApiKey').value.trim();const model=document.getElementById('aiModel').value.trim();
+  if(!apiUrl||!apiKey||!model){showSettingsStatus('请填写所有字段','error');return}
+  showSettingsStatus('正在测试连接...','');
+  try{const response=await fetch(`${apiUrl}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`},body:JSON.stringify({model,messages:[{role:'user',content:'Hi'}],max_tokens:10})});
+  if(response.ok){showSettingsStatus('✓ 连接成功！模型可用','success')}else{const errBody=await response.json().catch(()=>({}));showSettingsStatus('✗ 连接失败('+response.status+'): '+(errBody.error?.message||''),'error')}}catch(e){showSettingsStatus('✗ 连接失败: '+e.message,'error')}
+}
+
+function clearChat(){chatHistory=[];document.getElementById('aiChat').innerHTML='<div class="ai-msg system">对话已清空</div>'}
+function insertHint(text){document.getElementById('aiChatInput').value=text;document.getElementById('aiChatInput').focus()}
+
+function getBSRDataSummary(){
+  const data=getFilteredData();
+  const brands={};const subCats={};const prices=[];const ratings=[];const reviews=[];
+  data.forEach(d=>{const b=getBrand(d);if(b&&b!=='暂无'&&/^[a-zA-Z]/.test(b))brands[b]=(brands[b]||0)+1;const c=d['小类'];if(c&&c!=='暂无')subCats[c]=(subCats[c]||0)+1;const p=safeNum(d['Buybox价格']);if(p>0)prices.push(p);const r=safeNum(d['评分']);if(r>0)ratings.push(r);const rv=safeNum(d['父体Rating数']);if(rv>0)reviews.push(rv)});
+  const topBrands=Object.entries(brands).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const topSubCats=Object.entries(subCats).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const asins=new Set(data.map(d=>d['竞品ASIN']));
+
+  return`【BSR数据概览】
+- 总产品数: ${asins.size}款 (TOP100)
+- 品牌数量: ${Object.keys(brands).length}个
+- 小类数量: ${Object.keys(subCats).length}个
+- 数据月份: ${ALL_MONTHS.map(m=>monthKeyToLabel(m)).join(', ')}
+- 平均价格: $${avg(prices).toFixed(2)}
+- 平均评分: ${avg(ratings).toFixed(2)}
+- 平均评论数: ${Math.round(avg(reviews)).toLocaleString()}
+
+【TOP10品牌(上榜产品数)】
+${topBrands.map(([b,c],i)=>`${i+1}. ${b}: ${c}款`).join('\n')}
+
+【TOP8小类(产品数)】
+${topSubCats.map(([c,n],i)=>`${i+1}. ${c}: ${n}款`).join('\n')}`;
+}
+
+async function sendChatMessage(){
+  const input=document.getElementById('aiChatInput');const message=input.value.trim();
+  if(!message||isGenerating)return;
+  const saved=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');
+  if(!saved.apiUrl||!saved.apiKey||!saved.model){addChatMessage('system','请先点击「设置」配置API');return}
+  addChatMessage('user',message);input.value='';input.style.height='auto';
+  const bsrData=getBSRDataSummary();
+  const systemPrompt=`你是一个Amazon BSR排名数据分析专家。请根据以下BSR数据回答用户问题，给出专业、有洞察力的分析和建议。\n\n${bsrData}\n\n回答要求：\n1. 基于数据给出具体分析\n2. 如果涉及具体数字，请引用数据\n3. 给出可执行的冲榜/监控建议\n4. 使用中文回答`;
+  chatHistory.push({role:'user',content:message});
+  isGenerating=true;document.getElementById('aiChatSend').disabled=true;
+  const typingDiv=document.createElement('div');typingDiv.className='ai-typing';typingDiv.id='typingIndicator';typingDiv.innerHTML='<span></span><span></span><span></span>';document.getElementById('aiChat').appendChild(typingDiv);scrollToBottom();
+  try{const response=await fetch(`${saved.apiUrl}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${saved.apiKey}`},body:JSON.stringify({model:saved.model,messages:[{role:'system',content:systemPrompt},...chatHistory.slice(-10)],temperature:0.7,max_tokens:2000})});
+  const typing=document.getElementById('typingIndicator');if(typing)typing.remove();
+  if(!response.ok)throw new Error(`API错误: ${response.status}`);
+  const result=await response.json();const reply=result.choices?.[0]?.message?.content||'抱歉，无法获取回复';
+  chatHistory.push({role:'assistant',content:reply});addChatMessage('assistant',reply);
+  }catch(e){const typing=document.getElementById('typingIndicator');if(typing)typing.remove();addChatMessage('system','请求失败: '+e.message)}
+  isGenerating=false;document.getElementById('aiChatSend').disabled=false;
+}
+
+function addChatMessage(role,content){const chat=document.getElementById('aiChat');const msg=document.createElement('div');msg.className='ai-msg '+role;let html=content.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/```([\s\S]*?)```/g,'<pre><code>$1</code></pre>').replace(/`(.*?)`/g,'<code>$1</code>');msg.innerHTML=html;chat.appendChild(msg);scrollToBottom()}
+function scrollToBottom(){const chat=document.getElementById('aiChat');chat.scrollTop=chat.scrollHeight}
+document.getElementById('aiChatInput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'});
+document.getElementById('aiChatInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage()}});
+
+// ========== SYNC ==========
+function openSyncModal(){document.getElementById('syncModal').classList.add('active');const saved=JSON.parse(localStorage.getItem('bsrSyncConfig')||'{}');if(saved.token)document.getElementById('syncToken').value=saved.token;if(saved.gistId)document.getElementById('syncGistId').value=saved.gistId}
+function closeSyncModal(){document.getElementById('syncModal').classList.remove('active')}
+function saveSyncConfig(){const token=document.getElementById('syncToken').value.trim();const gistId=document.getElementById('syncGistId').value.trim();localStorage.setItem('bsrSyncConfig',JSON.stringify({token,gistId}));showSyncStatus('✓ 配置已保存','success')}
+function showSyncStatus(msg,type){const el=document.getElementById('syncStatus');el.textContent=msg;el.className='nf-status show '+type;setTimeout(()=>{el.className='nf-status'},3000)}
+async function testSyncConnection(){const token=document.getElementById('syncToken').value.trim();if(!token){showSyncStatus('请输入Token','error');return}try{const resp=await fetch('https://api.github.com/user',{headers:{'Authorization':'Bearer '+token}});if(resp.ok){showSyncStatus('✓ Token有效','success')}else{showSyncStatus('✗ Token无效','error')}}catch(e){showSyncStatus('✗ 网络错误','error')}}
+async function pushSyncData(){const token=document.getElementById('syncToken').value.trim();const gistId=document.getElementById('syncGistId').value.trim();if(!token){showSyncStatus('请输入Token','error');return}const exportData={data:ALL_DATA,months:ALL_MONTHS,exportTime:new Date().toISOString()};const body={description:'BSR Dashboard Data',files:{'bsr-data.json':{content:JSON.stringify(exportData)}}};try{let resp;if(gistId){resp=await fetch(`https://api.github.com/gists/${gistId}`,{method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)})}else{resp=await fetch('https://api.github.com/gists',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)})}if(resp.ok){const result=await resp.json();document.getElementById('syncGistId').value=result.id;localStorage.setItem('bsrSyncConfig',JSON.stringify({token,gistId:result.id}));showSyncStatus('✓ 推送成功','success')}else{showSyncStatus('✗ 推送失败: '+resp.status,'error')}}catch(e){showSyncStatus('✗ 网络错误: '+e.message,'error')}}
+async function pullSyncData(){const token=document.getElementById('syncToken').value.trim();const gistId=document.getElementById('syncGistId').value.trim();if(!token||!gistId){showSyncStatus('请输入Token和Gist ID','error');return}try{const resp=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{'Authorization':'Bearer '+token}});if(!resp.ok)throw new Error('HTTP '+resp.status);const gist=await resp.json();const fileContent=gist.files['bsr-data.json']?.content;if(!fileContent)throw new Error('找不到bsr-data.json');const imported=JSON.parse(fileContent);if(imported.data&&imported.months){ALL_DATA=imported.data;ALL_MONTHS=imported.months;rebuildFilterOptions();applyFilters();showSyncStatus('✓ 拉取成功: '+ALL_DATA.length+'条数据','success')}else{showSyncStatus('✗ 数据格式错误','error')}}catch(e){showSyncStatus('✗ 拉取失败: '+e.message,'error')}}
+function exportSyncExcel(){const rows=ALL_DATA.map(d=>{const row={'ASIN':d['竞品ASIN']||'','品牌':getBrand(d),'品类':d['品类'],'小类':d['小类'],'风格':d['风格'],'面料':d['面料'],'Buybox价格':d['Buybox价格'],'评分':d['评分'],'评论数':d['父体Rating数'],'大类排名':d['大类排名'],'小类排名':d['小类排名'],'上架日期':d['上架日期'],'数据月份':d._dataMonth};return row});const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'BSR数据');XLSX.writeFile(wb,'BSR数据同步_'+new Date().toISOString().slice(0,10)+'.xlsx')}
+function importSyncData(){document.getElementById('syncModal').classList.remove('active');openImportModal()}
+
+// ========== EXPORT ==========
+function toggleExportMenu(){const menu=document.getElementById('exportMenu');menu.classList.toggle('show');const close=(e)=>{if(!menu.contains(e.target)&&!e.target.closest('.export-dropdown')){menu.classList.remove('show');document.removeEventListener('click',close)}};setTimeout(()=>document.addEventListener('click',close),0)}
+function exportExcel(){const data=getFilteredData();const rows=data.map(d=>({ASIN:d['竞品ASIN']||'',品牌:getBrand(d),品类:d['品类'],小类:d['小类'],风格:d['风格'],面料:d['面料'],Buybox价格:d['Buybox价格'],评分:d['评分'],评论数:d['父体Rating数'],大类排名:d['大类排名'],小类排名:d['小类排名'],上架日期:d['上架日期'],数据月份:d._dataMonth}));const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'BSR数据导出');XLSX.writeFile(wb,'BSR数据_'+new Date().toISOString().slice(0,10)+'.xlsx');document.getElementById('exportMenu').classList.remove('show')}
+function exportPDF(){document.getElementById('exportMenu').classList.remove('show');window.print()}
+function exportChartImage(){const activePage=document.querySelector('.tab-page.active');if(!activePage){alert('请先选择一个页签');return}const canvas=activePage.querySelector('canvas');if(!canvas){alert('当前页签没有图表');return}const link=document.createElement('a');link.download='BSR图表_'+new Date().toISOString().slice(0,10)+'.png';link.href=canvas.toDataURL('image/png',1.0);link.click();document.getElementById('exportMenu').classList.remove('show')}
+
+// ========== AI INSIGHT ==========
+const INSIGHT_MODULES=[
+  {id:'overview',title:'本月TOP100榜单格局总结',prompt:'请总结当前BSR数据的TOP100榜单整体格局：覆盖哪些小类、品牌分布如何、价格和评分特征、市场集中度如何。给出关键洞察。'},
+  {id:'risers',title:'上升最快/新入榜产品特征分析',prompt:'分析排名上升最快和新入榜产品的共同特征：它们的品牌、价格区间、评分、评论数有什么规律？哪些品类容易出黑马？'},
+  {id:'dropouts',title:'跌出榜单产品风险预警',prompt:'分析跌出TOP100的产品特征：它们之前的价格、评分、评论数如何？跌出的可能原因是什么？给出风险预警建议。'},
+  {id:'intensity',title:'各小类竞争激烈程度评估',prompt:'评估各小类的竞争激烈程度：哪些小类品牌最多、产品最多、排名变动最大？哪些小类相对蓝海？给出竞争格局分析。'},
+  {id:'attributes',title:'高排名产品属性组合推荐',prompt:'分析TOP100中排名靠前产品的属性特征（风格、面料等）：哪些属性组合更容易获得高排名？给出属性选品建议。'},
+  {id:'strategy',title:'新品冲榜策略建议',prompt:'基于当前BSR数据，给出新品冲榜的策略建议：应该瞄准哪些小类？什么价格区间合适？需要达到什么评分和评论数才能进入TOP100？'}
+];
+let insightResults={};
+
+function startInsightAnalysis(){
+  const saved=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');
+  if(!saved.apiUrl||!saved.apiKey||!saved.model){alert('请先在AI助手中配置API');return}
+  if(ALL_DATA.length===0){alert('请先导入BSR数据');return}
+
+  const menuList=document.getElementById('insightMenuList');
+  menuList.innerHTML=INSIGHT_MODULES.map((m,i)=>`<div class="insight-menu-item" id="insightMenu-${m.id}" data-idx="${i}"><span class="insight-menu-icon">○</span>${m.title}</div>`).join('');
+  document.getElementById('insightEmpty').style.display='none';
+  document.getElementById('btnGenReport').disabled=true;
+  document.getElementById('insightStatus').textContent='分析中...';
+
+  let currentIdx=0;
+  function runNext(){
+    if(currentIdx>=INSIGHT_MODULES.length){
+      document.getElementById('insightStatus').textContent='分析完成';
+      document.getElementById('btnGenReport').disabled=false;
+      document.getElementById('btnExportReport').style.display='inline-block';
+      return;
+    }
+    const mod=INSIGHT_MODULES[currentIdx];
+    document.getElementById('insightMenu-'+mod.id).className='insight-menu-item running';
+    document.getElementById('insightMenu-'+mod.id).querySelector('.insight-menu-icon').textContent='◎';
+    document.getElementById('insightProgressFill').style.width=Math.round(currentIdx/INSIGHT_MODULES.length*100)+'%';
+    document.querySelector('.insight-progress-text').textContent=`进度：${currentIdx}/${INSIGHT_MODULES.length}`;
+
+    const bsrData=getBSRDataSummary();
+    fetch(`${saved.apiUrl}/chat/completions`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${saved.apiKey}`},
+      body:JSON.stringify({model:saved.model,messages:[{role:'system',content:`你是Amazon BSR排名分析专家。基于以下数据进行分析，给出专业洞察。\n\n${bsrData}`},{role:'user',content:mod.prompt}],temperature:0.7,max_tokens:1500})
+    }).then(r=>r.json()).then(result=>{
+      const reply=result.choices?.[0]?.message?.content||'分析失败';
+      insightResults[mod.id]=reply;
+      document.getElementById('insightMenu-'+mod.id).className='insight-menu-item done';
+      document.getElementById('insightMenu-'+mod.id).querySelector('.insight-menu-icon').textContent='✓';
+      // Render content
+      const content=document.getElementById('insightContent');
+      const section=document.createElement('div');section.className='insight-section';
+      const html=reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/`(.*?)`/g,'<code>$1</code>');
+      section.innerHTML=`<h2>${mod.title}</h2><div>${html}</div>`;
+      content.appendChild(section);
+      currentIdx++;runNext();
+    }).catch(e=>{
+      document.getElementById('insightMenu-'+mod.id).className='insight-menu-item';
+      document.getElementById('insightMenu-'+mod.id).querySelector('.insight-menu-icon').textContent='✗';
+      insightResults[mod.id]='分析失败: '+e.message;
+      currentIdx++;runNext();
+    });
+  }
+  runNext();
+}
+
+function exportInsightReport(){
+  let report='# BSR数据分析洞察报告\n\n';
+  report+=`生成时间：${new Date().toLocaleString('zh-CN')}\n\n`;
+  report+=getBSRDataSummary()+'\n\n---\n\n';
+  INSIGHT_MODULES.forEach(m=>{
+    report+=`## ${m.title}\n\n${insightResults[m.id]||'未分析'}\n\n---\n\n`;
+  });
+  const blob=new Blob([report],{type:'text/markdown'});
+  const link=document.createElement('a');link.download='BSR洞察报告_'+new Date().toISOString().slice(0,10)+'.md';link.href=URL.createObjectURL(blob);link.click();
+}
+
+// ========== INIT ==========
+(function(){
+  // Load cached data
+  try{const cached=localStorage.getItem('bsrCachedData');if(cached){const parsed=JSON.parse(cached);if(parsed.data&&parsed.data.length>0){ALL_DATA=parsed.data;ALL_MONTHS=parsed.months||[];rebuildFilterOptions();applyFilters()}}}catch(e){}
+  // Load AI settings
+  const aiSettings=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');
+  if(aiSettings.apiUrl)document.getElementById('aiApiUrl').value=aiSettings.apiUrl;
+  if(aiSettings.apiKey)document.getElementById('aiApiKey').value=aiSettings.apiKey;
+  if(aiSettings.model)document.getElementById('aiModel').value=aiSettings.model;
+  window.addEventListener('resize',resizeAllCharts);
+  // Register chart click handlers after data loads
+  setTimeout(registerAllChartClickHandlers,100);
+})();
+</script>
