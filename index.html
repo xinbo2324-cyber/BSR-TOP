@@ -927,34 +927,69 @@ function buildColumnMapping(){
 function confirmImportData(){
   const status=document.getElementById('importStatus');status.className='import-status loading';status.textContent='导入中...';
 
-  // Detect months ONLY from 数据时间 field
+  // Detect months from 数据时间 field
   const dm=[];
-  const dataTimeCol=columnMapping['数据时间']||pendingHeaders.find(h=>h==='数据时间');
+  let dataTimeCol='';
+
+  // Method 1: Direct search in pendingHeaders
+  dataTimeCol=pendingHeaders.find(h=>h==='数据时间');
+  if(!dataTimeCol)dataTimeCol=pendingHeaders.find(h=>h.includes('数据时间'));
+  if(!dataTimeCol)dataTimeCol=pendingHeaders.find(h=>h.includes('数据')&&h.includes('时间'));
+
+  // Method 2: From columnMapping
+  if(!dataTimeCol&&columnMapping['数据时间'])dataTimeCol=columnMapping['数据时间'];
+
+  console.log('dataTimeCol:', dataTimeCol);
+  console.log('pendingHeaders:', pendingHeaders.slice(0,10));
 
   if(dataTimeCol){
+    console.log('Parsing dataTimeCol:', dataTimeCol);
+    // Collect all unique raw values to understand the format
+    const rawValues=new Set();
+    pendingRows.forEach(r=>{
+      const raw=r[dataTimeCol];
+      if(raw)rawValues.add(String(raw).trim());
+    });
+    console.log('Unique dataTime values:', [...rawValues].slice(0,10));
+
+    // Determine the reference year from sales columns (use the latest year)
+    let refYear=new Date().getFullYear();
+    const yearMatch=pendingHeaders.find(h=>/^父体销量(\d{4})/.test(h));
+    if(yearMatch){const ym=yearMatch.match(/^父体销量(\d{4})/);if(ym)refYear=parseInt(ym[1])}
+
     pendingRows.forEach(r=>{
       const raw=r[dataTimeCol];
       if(!raw)return;
       let ym='';
-      if(raw instanceof Date&&!isNaN(raw.getTime())){
-        ym=raw.getFullYear()+String(raw.getMonth()+1).padStart(2,'0');
-      }else if(typeof raw==='number'){
-        const d=new Date((raw-25569)*864e5);
-        if(!isNaN(d.getTime()))ym=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');
-      }else{
-        const s=String(raw).trim();
-        const ymMatch=s.match(/(\d{4})[-/年](\d{1,2})/);
-        if(ymMatch)ym=ymMatch[1]+ymMatch[2].padStart(2,'0');
+      const s=String(raw).trim();
+
+      // Format: "2026-01-01" or "2026/1/1" or "2026年1月"
+      const fullMatch=s.match(/(\d{4})[-/年](\d{1,2})/);
+      if(fullMatch){ym=fullMatch[1]+fullMatch[2].padStart(2,'0')}
+      else{
+        // Format: "1月" or "12月" (just month with Chinese character)
+        const mMatch=s.match(/^(\d{1,2})月$/);
+        if(mMatch){ym=refYear+mMatch[1].padStart(2,'0')}
+        else{
+          // Format: "1" or "12" (just month number)
+          const numMatch=s.match(/^(\d{1,2})$/);
+          if(numMatch&&parseInt(numMatch[1])>=1&&parseInt(numMatch[1])<=12){ym=refYear+numMatch[1].padStart(2,'0')}
+          // Format: Excel date serial number
+          else if(typeof raw==='number'){const d=new Date((raw-25569)*864e5);if(!isNaN(d.getTime()))ym=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')}
+          // Format: Date object
+          else if(raw instanceof Date&&!isNaN(raw.getTime())){ym=raw.getFullYear()+String(raw.getMonth()+1).padStart(2,'0')}
+        }
       }
+
       if(ym&&!dm.includes(ym))dm.push(ym);
     });
+  }else{
+    console.log('WARNING: 数据时间 column not found!');
   }
 
-  // Fallback: if no 数据时间, try sales columns (legacy mode)
-  if(dm.length===0){
-    const monthPattern=/^(?:父体销量|子体销量|Sales?_?)(\d{4})(\d{2})$/i;
-    pendingHeaders.forEach(h=>{const m=h.match(monthPattern);if(m){const ym=m[1]+m[2];if(!dm.includes(ym))dm.push(ym)}});
-  }
+  console.log('Final months:', dm);
+
+  // NO FALLBACK - only use 数据时间 field
 
   dm.sort();
   ALL_MONTHS=dm;
@@ -962,31 +997,42 @@ function confirmImportData(){
   ALL_DATA=pendingRows.map(row=>{
     const item={};SYSTEM_FIELDS.forEach(f=>{item[f.key]=columnMapping[f.key]?String(row[columnMapping[f.key]]||''):''});
 
-    // Parse sales: take the latest non-zero value from all 父体销量 columns
+    // Parse ALL sales from 父体销量 columns (independent of ALL_MONTHS)
     const sales={};
-    const salesMap={};
     pendingHeaders.forEach(h=>{
       const m=h.match(/^父体销量(\d{6})$/);
-      if(m){const val=safeNum(row[h]);if(val>0)salesMap[m[1]]=val}
+      if(m){const val=safeNum(row[h]);if(val>0)sales[m[1]]=val}
     });
-    // Set sales for each month in ALL_MONTHS
-    ALL_MONTHS.forEach(m=>{sales[m]=salesMap[m]||0});
     item.sales=sales;
 
     // Determine which month this record belongs to - ONLY from 数据时间
     item._dataMonth='';
     if(dataTimeCol){
       const raw=row[dataTimeCol];
-      if(raw instanceof Date&&!isNaN(raw.getTime())){
-        item._dataMonth=raw.getFullYear()+String(raw.getMonth()+1).padStart(2,'0');
-      }else if(typeof raw==='number'){
-        // Excel serial date number
-        const d=new Date((raw-25569)*864e5);
-        if(!isNaN(d.getTime()))item._dataMonth=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');
-      }else{
-        const s=String(raw||'').trim();
-        const ymMatch=s.match(/(\d{4})[-/年](\d{1,2})/);
-        if(ymMatch)item._dataMonth=ymMatch[1]+ymMatch[2].padStart(2,'0');
+      if(raw){
+        const s=String(raw).trim();
+        // Determine reference year from sales columns
+        let refYear=new Date().getFullYear();
+        const yearMatch=pendingHeaders.find(h=>/^父体销量(\d{4})/.test(h));
+        if(yearMatch){const ym2=yearMatch.match(/^父体销量(\d{4})/);if(ym2)refYear=parseInt(ym2[1])}
+
+        // Format: "2026-01-01" or "2026/1/1" or "2026年1月"
+        const fullMatch=s.match(/(\d{4})[-/年](\d{1,2})/);
+        if(fullMatch){item._dataMonth=fullMatch[1]+fullMatch[2].padStart(2,'0')}
+        else{
+          // Format: "1月" or "12月"
+          const mMatch=s.match(/^(\d{1,2})月$/);
+          if(mMatch){item._dataMonth=refYear+mMatch[1].padStart(2,'0')}
+          else{
+            // Format: "1" or "12" (just month number)
+            const numMatch=s.match(/^(\d{1,2})$/);
+            if(numMatch&&parseInt(numMatch[1])>=1&&parseInt(numMatch[1])<=12){item._dataMonth=refYear+numMatch[1].padStart(2,'0')}
+            // Format: Excel date serial number
+            else if(typeof raw==='number'){const d=new Date((raw-25569)*864e5);if(!isNaN(d.getTime()))item._dataMonth=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')}
+            // Format: Date object
+            else if(raw instanceof Date&&!isNaN(raw.getTime())){item._dataMonth=raw.getFullYear()+String(raw.getMonth()+1).padStart(2,'0')}
+          }
+        }
       }
     }
     // Calculate months on list
@@ -1241,8 +1287,9 @@ function updateOverviewTable(){
     items.forEach((d,i)=>{
       const asin=d['父ASIN']||d['竞品ASIN']||'';
       const brand=getBrand(d);
-      const latestMonth=ALL_MONTHS[ALL_MONTHS.length-1];
-      const latestSales=latestMonth?safeNum(d.sales?.[latestMonth]):0;
+      // Get latest sales from ALL available sales data
+      const salesKeys=Object.keys(d.sales||{}).filter(k=>safeNum(d.sales[k])>0).sort();
+      const latestSales=salesKeys.length>0?safeNum(d.sales[salesKeys[salesKeys.length-1]]):0;
       html+=`<tr><td><strong>${safeNum(d['小类排名'])||i+1}</strong></td><td><a class="link-btn" href="${d['链接']||'https://www.amazon.com/dp/'+asin}" target="_blank">${asin}</a></td><td>${brand}</td><td>${cat}</td><td>$${d['Buybox价格']}</td><td>${d['评分']}</td><td>${safeNum(d['父体Rating数']).toLocaleString()}</td><td>${latestSales.toLocaleString()}</td><td>${formatDateShort(d['上架日期'])}</td><td>${d['链接']?'<a class="link-btn" href="'+d['链接']+'" target="_blank">查看</a>':'-'}</td></tr>`;
     });
   });
@@ -1823,6 +1870,9 @@ function updateDetailTable(){
     const asin=d['父ASIN']||d['竞品ASIN']||'';
     const rank=safeNum(d['小类排名']);
     const prevRank=prevRanks[asin]||0;
+    // Get latest sales from ALL available sales data
+    const salesKeys=Object.keys(d.sales||{}).filter(k=>safeNum(d.sales[k])>0).sort();
+    const latestSales=salesKeys.length>0?safeNum(d.sales[salesKeys[salesKeys.length-1]]):0;
     let changeHtml='-';
     if(prevRank>0&&rank>0){
       const diff=prevRank-rank;
@@ -1832,7 +1882,6 @@ function updateDetailTable(){
     }else if(rank>0&&!prevRank){
       changeHtml='<span class="badge badge-new">新入榜</span>';
     }
-    const latestSales=latestMonth?safeNum(d.sales?.[latestMonth]):0;
     // Filter by change direction
     if(dc&&dc.value){
       if(dc.value==='up'&&!(prevRank>0&&rank>0&&prevRank>rank))return'';
