@@ -2558,6 +2558,93 @@ function updateCompCharts(){
 const v7RegisterAllChartClickHandlers=v7OriginalRegisterAllChartClickHandlers;
 function registerAllChartClickHandlers(){v7RegisterAllChartClickHandlers();v8RegisterChangeClicks()}
 
+// ========== V9 INTERACTION PATCH ==========
+function v9DatasetIndex(chart,event,fallback){
+  if(chart&&event&&chart.getElementsAtEventForMode){
+    const hits=chart.getElementsAtEventForMode(event,'nearest',{intersect:true},false);
+    if(hits&&hits.length)return hits[0].datasetIndex;
+  }
+  const active=chart?.getActiveElements?.()?.[0];
+  return active?active.datasetIndex:(Number.isFinite(fallback)?fallback:0);
+}
+function v9GetCompareTrendData(){
+  let rows=ALL_DATA;
+  const sub=document.getElementById('fCompareSubCat');
+  const brand=document.getElementById('fCompareBrand');
+  if(sub?.value)rows=rows.filter(row=>row['小类']===sub.value);
+  if(brand?.value){const wanted=brand.value.toLowerCase();rows=rows.filter(row=>getBrand(row).toLowerCase()===wanted)}
+  return rows;
+}
+function v9RegisterExtraClicks(){
+  registerChartClick('chartConcentration',function(idx){
+    const chart=charts.chartConcentration;if(!chart)return;
+    const label=String(chart.data.labels?.[idx]??'');
+    const splitAt=label.indexOf(' · ');
+    const rank=splitAt>=0?safeNum(label.slice(0,splitAt)):safeNum(label);
+    const subcat=splitAt>=0?label.slice(splitAt+3):'';
+    const items=getOverviewSnapshotData().filter(row=>safeNum(row['小类排名'])===rank&&(!subcat||(row['小类']||'未标注')===subcat));
+    showProductList(`排名 ${rank} · ${subcat||'全部小类'} 的产品`,`小类排名=${rank} · 小类=${subcat||'全部'}`,items);
+  });
+  registerChartClick('chartBrandTrend',function(idx,event,datasetIndex){
+    const chart=charts.chartBrandTrend;if(!chart)return;
+    const ds=v9DatasetIndex(chart,event,datasetIndex);
+    const month=ALL_MONTHS[idx]||monthStrToKey(chart.data.labels?.[idx]||'');
+    const brand=String(chart.data.datasets?.[ds]?.label||'');
+    const items=v9GetCompareTrendData().filter(row=>row._dataMonth===month&&getBrand(row)===brand);
+    showProductList(`${brand} ${monthKeyToLabel(month)} 的产品`,`品牌：${brand} · 月份：${monthKeyToLabel(month)}`,items);
+  });
+  registerChartClick('chartEntryDrop',function(idx,event,datasetIndex){
+    const chart=charts.chartEntryDrop;if(!chart||ALL_MONTHS.length<2)return;
+    const prevMonth=ALL_MONTHS[idx],curMonth=ALL_MONTHS[idx+1];
+    if(!prevMonth||!curMonth)return;
+    const ds=v9DatasetIndex(chart,event,datasetIndex);
+    const rows=v9GetCompareTrendData();
+    const prevMap=v8UniqueMap(rows.filter(row=>row._dataMonth===prevMonth));
+    const curMap=v8UniqueMap(rows.filter(row=>row._dataMonth===curMonth));
+    const items=[];
+    if(ds===1){
+      prevMap.forEach((row,key)=>{if(!curMap.has(key))items.push(row)});
+    }else{
+      curMap.forEach((row,key)=>{if(!prevMap.has(key))items.push(row)});
+    }
+    const status=ds===1?'跌出榜':'新入榜';
+    showProductList(`${monthKeyToLabel(prevMonth)}→${monthKeyToLabel(curMonth)} · ${status}`,`${status} · ${items.length}个 · ${monthKeyToLabel(prevMonth)}→${monthKeyToLabel(curMonth)}`,items);
+  });
+}
+function v9PatchConcentrationChart(){
+  const chart=charts.chartConcentration;if(!chart)return;
+  const data=getOverviewSnapshotData();
+  const topN=parseInt(document.getElementById('fTopN')?.value||'100');
+  const rankedItems=data.filter(row=>safeNum(row['小类排名'])>0).sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名'])).slice(0,topN);
+  chart.data.labels=rankedItems.map(row=>`${safeNum(row['小类排名'])} · ${row['小类']||'未标注'}`);
+  if(chart.options?.scales?.x?.title)chart.options.scales.x.title.text='小类排名 · 小类';
+  chart.update('none');
+}
+function v9AttachChartClicks(){
+  ['chartConcentration','chartBrandTrend','chartEntryDrop'].forEach(id=>{
+    const chart=charts[id];if(!chart||!chartClickHandlers[id])return;
+    chart.options.onClick=(event,elements)=>{
+      if(elements&&elements.length)chartClickHandlers[id](elements[0].index,event,elements[0].datasetIndex);
+    };
+    chart.update('none');
+  });
+}
+const v9BaseUpdateOverviewCharts=updateOverviewCharts;
+updateOverviewCharts=function(){
+  v9BaseUpdateOverviewCharts();
+  v9PatchConcentrationChart();
+  v9AttachChartClicks();
+};
+const v9BaseApplyFilters=applyFilters;
+applyFilters=function(){
+  v9RegisterExtraClicks();
+  registerAllChartClickHandlers();
+  v9BaseApplyFilters();
+  v9RegisterExtraClicks();
+  v9PatchConcentrationChart();
+  v9AttachChartClicks();
+};
+
 // ========== INIT ==========
 (function(){
   // Load the data embedded in this HTML first; fall back to browser cache only when no embedded data exists.
