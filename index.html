@@ -302,7 +302,6 @@ tr:hover td{background:rgba(102,126,234,.02)}
     <div style="display:flex;align-items:center;gap:12px">
       <div style="display:flex;gap:6px">
         <button class="btn-import" onclick="openImportModal()">📂 导入数据</button>
-        <button class="btn-import" onclick="openSyncModal()">🔄 数据同步</button>
       </div>
       <div class="export-dropdown">
         <button class="btn-import" onclick="toggleExportMenu()">📤 导出</button>
@@ -318,7 +317,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
 </div>
 
-<!-- Data Sync Modal -->
+<!-- Legacy credential-based Gist sync has been removed from this public page.
 <div class="nf-overlay" id="syncModal">
   <div class="nf-modal" style="max-width:520px">
     <button class="close-btn" onclick="closeSyncModal()">×</button>
@@ -367,6 +366,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
 </div>
 
+-->
 <!-- Main Layout -->
 <div class="main-wrapper">
 <div class="content-area" id="contentArea">
@@ -2323,10 +2323,12 @@ function formatDateShort(val){
 // ========== AI CHAT ==========
 let chatHistory=[];
 let isGenerating=false;
+// API 配置仅保留在当前页面会话内，刷新或关闭页面后自动丢弃。
+let v24AiSessionSettings={};
 
 function toggleAIPanel(){const panel=document.getElementById('aiPanel');const btn=document.getElementById('aiToggleBtn');panel.classList.toggle('open');btn.classList.toggle('active');document.body.classList.toggle('ai-open');setTimeout(resizeAllCharts,350)}
-function toggleSettings(){const settings=document.getElementById('aiSettings');settings.classList.toggle('open');const saved=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');if(saved.apiUrl)document.getElementById('aiApiUrl').value=saved.apiUrl;if(saved.apiKey)document.getElementById('aiApiKey').value=saved.apiKey;if(saved.model)document.getElementById('aiModel').value=saved.model}
-function saveAISettings(){const apiUrl=document.getElementById('aiApiUrl').value.trim();const apiKey=document.getElementById('aiApiKey').value.trim();const model=document.getElementById('aiModel').value.trim();if(!apiUrl||!apiKey||!model){showSettingsStatus('请填写所有字段','error');return}localStorage.setItem('bsrAiSettings',JSON.stringify({apiUrl,apiKey,model}));showSettingsStatus('✓ 设置已保存','success')}
+function toggleSettings(){const settings=document.getElementById('aiSettings');settings.classList.toggle('open');const saved=v24AiSessionSettings;if(saved.apiUrl)document.getElementById('aiApiUrl').value=saved.apiUrl;if(saved.apiKey)document.getElementById('aiApiKey').value=saved.apiKey;if(saved.model)document.getElementById('aiModel').value=saved.model}
+function saveAISettings(){const apiUrl=document.getElementById('aiApiUrl').value.trim();const apiKey=document.getElementById('aiApiKey').value.trim();const model=document.getElementById('aiModel').value.trim();if(!apiUrl||!apiKey||!model){showSettingsStatus('请填写所有字段','error');return}v24AiSessionSettings={apiUrl,apiKey,model};showSettingsStatus('✓ 仅本次会话保存，关闭页面后自动清除','success')}
 function showSettingsStatus(msg,type){const el=document.getElementById('aiSettingsStatus');el.textContent=msg;el.className='ai-settings-status '+type;setTimeout(()=>{el.className='ai-settings-status'},3000)}
 
 async function testAIConnection(){
@@ -2367,7 +2369,7 @@ ${topSubCats.map(([c,n],i)=>`${i+1}. ${c}: ${n}款`).join('\n')}`;
 async function sendChatMessage(){
   const input=document.getElementById('aiChatInput');const message=input.value.trim();
   if(!message||isGenerating)return;
-  const saved=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');
+  const saved=v24AiSessionSettings;
   if(!saved.apiUrl||!saved.apiKey||!saved.model){addChatMessage('system','请先点击「设置」配置API');return}
   addChatMessage('user',message);input.value='';input.style.height='auto';
   const bsrData=getBSRDataSummary();
@@ -2391,14 +2393,10 @@ function scrollToBottom(){const chat=document.getElementById('aiChat');chat.scro
 document.getElementById('aiChatInput').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'});
 document.getElementById('aiChatInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage()}});
 
-// ========== SYNC ==========
-function openSyncModal(){document.getElementById('syncModal').classList.add('active');const saved=JSON.parse(localStorage.getItem('bsrSyncConfig')||'{}');if(saved.token)document.getElementById('syncToken').value=saved.token;if(saved.gistId)document.getElementById('syncGistId').value=saved.gistId}
-function closeSyncModal(){document.getElementById('syncModal').classList.remove('active')}
-function saveSyncConfig(){const token=document.getElementById('syncToken').value.trim();const gistId=document.getElementById('syncGistId').value.trim();localStorage.setItem('bsrSyncConfig',JSON.stringify({token,gistId}));showSyncStatus('✓ 配置已保存','success')}
-function showSyncStatus(msg,type){const el=document.getElementById('syncStatus');el.textContent=msg;el.className='nf-status show '+type;setTimeout(()=>{el.className='nf-status'},3000)}
-async function testSyncConnection(){const token=document.getElementById('syncToken').value.trim();if(!token){showSyncStatus('请输入Token','error');return}try{const resp=await fetch('https://api.github.com/user',{headers:{'Authorization':'Bearer '+token}});if(resp.ok){showSyncStatus('✓ Token有效','success')}else{showSyncStatus('✗ Token无效','error')}}catch(e){showSyncStatus('✗ 网络错误','error')}}
-async function pushSyncData(){const token=document.getElementById('syncToken').value.trim();const gistId=document.getElementById('syncGistId').value.trim();if(!token){showSyncStatus('请输入Token','error');return}const exportData={data:ALL_DATA,months:ALL_MONTHS,exportTime:new Date().toISOString()};const body={description:'BSR Dashboard Data',files:{'bsr-data.json':{content:JSON.stringify(exportData)}}};try{let resp;if(gistId){resp=await fetch(`https://api.github.com/gists/${gistId}`,{method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)})}else{resp=await fetch('https://api.github.com/gists',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)})}if(resp.ok){const result=await resp.json();document.getElementById('syncGistId').value=result.id;localStorage.setItem('bsrSyncConfig',JSON.stringify({token,gistId:result.id}));showSyncStatus('✓ 推送成功','success')}else{showSyncStatus('✗ 推送失败: '+resp.status,'error')}}catch(e){showSyncStatus('✗ 网络错误: '+e.message,'error')}}
-async function pullSyncData(){const token=document.getElementById('syncToken').value.trim();const gistId=document.getElementById('syncGistId').value.trim();if(!token||!gistId){showSyncStatus('请输入Token和Gist ID','error');return}try{const resp=await fetch(`https://api.github.com/gists/${gistId}`,{headers:{'Authorization':'Bearer '+token}});if(!resp.ok)throw new Error('HTTP '+resp.status);const gist=await resp.json();const fileContent=gist.files['bsr-data.json']?.content;if(!fileContent)throw new Error('找不到bsr-data.json');const imported=JSON.parse(fileContent);if(imported.data&&imported.months){ALL_DATA=imported.data;ALL_MONTHS=imported.months;refreshMonthsOnList();rebuildFilterOptions();applyFilters();showSyncStatus('✓ 拉取成功: '+ALL_DATA.length+'条数据','success')}else{showSyncStatus('✗ 数据格式错误','error')}}catch(e){showSyncStatus('✗ 拉取失败: '+e.message,'error')}}
+// ========== DATA TRANSFER ==========
+// 静态公开页仅保留本地 Excel 导入/导出，不提供 Token/Gist 同步。
+function openSyncModal(){openImportModal()}
+function closeSyncModal(){document.getElementById('syncModal')?.classList.remove('active')}
 function exportSyncExcel(){const rows=ALL_DATA.map(d=>{const row={'ASIN':d['竞品ASIN']||'','品牌':getBrand(d),'品类':d['品类'],'小类':d['小类'],'风格':d['风格'],'面料':d['面料'],'Buybox价格':d['Buybox价格'],'评分':d['评分'],'评论数':d['父体Rating数'],'大类排名':d['大类排名'],'小类排名':d['小类排名'],'上架日期':d['上架日期'],'数据月份':d._dataMonth};return row});const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'BSR数据');XLSX.writeFile(wb,'BSR数据同步_'+new Date().toISOString().slice(0,10)+'.xlsx')}
 function importSyncData(){document.getElementById('syncModal').classList.remove('active');openImportModal()}
 
@@ -2420,7 +2418,7 @@ const INSIGHT_MODULES=[
 let insightResults={};
 
 function startInsightAnalysis(){
-  const saved=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');
+  const saved=v24AiSessionSettings;
   if(!saved.apiUrl||!saved.apiKey||!saved.model){alert('请先在AI助手中配置API');return}
   if(ALL_DATA.length===0){alert('请先导入BSR数据');return}
 
@@ -3199,8 +3197,10 @@ function v22DetailValue(row,key){return key==='brand'?getBrand(row):key==='subca
 function v22DetailOptions(key){return [...new Set(v22DetailState.items.map(item=>v22DetailValue(item,key)).filter(value=>value&&value!=='92'&&value!=='暂无'))].sort((a,b)=>a.localeCompare(b,'zh-CN'))}
 function v22EnsureDetailFilters(){
   const modal=document.getElementById('rankingDetailModal'),table=modal?.querySelector('div[style*="overflow-x:auto"]');if(!modal||!table)return;let box=document.getElementById('v22DetailFilters');if(!box){box=document.createElement('div');box.id='v22DetailFilters';box.className='v22-detail-filters';table.parentElement.insertBefore(box,table)}
+  const previous=Object.fromEntries([...box.querySelectorAll('[data-v22-detail]')].map(input=>[input.dataset.v22Detail,input.value]));
   const option=(key,label)=>`<label>${label}<select data-v22-detail="${key}"><option value="">全部</option>${v22DetailOptions(key).map(value=>`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('')}</select></label>`;
   box.innerHTML=option('brand','品牌')+option('subcat','小类')+option('style','风格')+option('fabric','面料')+`<label>排名<select data-v22-detail="rank"><option value="">全部</option><option value="1-10">1-10</option><option value="11-20">11-20</option><option value="21-50">21-50</option><option value="51-100">51-100</option><option value="101+">101+</option></select></label><label class="v22-keyword">关键词<input data-v22-detail="keyword" placeholder="ASIN / 品牌 / 标题"></label><button type="button" onclick="v22ResetDetailFilters()">重置</button>`;
+  box.querySelectorAll('[data-v22-detail]').forEach(input=>{if(Object.prototype.hasOwnProperty.call(previous,input.dataset.v22Detail))input.value=previous[input.dataset.v22Detail]});
   box.querySelectorAll('[data-v22-detail]').forEach(input=>input.addEventListener('input',v22RenderDetailList));
 }
 function v22FilteredDetailItems(){const read=key=>document.querySelector(`[data-v22-detail="${key}"]`)?.value||'',brand=read('brand'),subcat=read('subcat'),style=read('style'),fabric=read('fabric'),rank=read('rank'),keyword=read('keyword').trim().toLowerCase();return v22DetailState.items.filter(row=>{const value=safeNum(v8Field(row,'rank'));const inRank=!rank||(rank==='101+'?value>=101:(()=>{const [lo,hi]=rank.split('-').map(Number);return value>=lo&&value<=hi})());const text=[getProductKey(row),getBrand(row),row['标题']||''].join(' ').toLowerCase();return(!brand||v22DetailValue(row,'brand')===brand)&&(!subcat||v22DetailValue(row,'subcat')===subcat)&&(!style||v22DetailValue(row,'style')===style)&&(!fabric||v22DetailValue(row,'fabric')===fabric)&&inRank&&(!keyword||text.includes(keyword))})}
@@ -3236,6 +3236,10 @@ renderSmartCompetition=function(){v23BaseRenderSmartCompetition();v23RenderBrand
 
 // ========== INIT ==========
 (function(){
+  // 清除旧版本可能遗留的敏感配置，并移除公开页的 Token 同步界面。
+  localStorage.removeItem('bsrAiSettings');
+  localStorage.removeItem('bsrSyncConfig');
+  document.getElementById('syncModal')?.remove();
   // Load the data embedded in this HTML first; fall back to browser cache only when no embedded data exists.
   let hasInitialData=false;
   if(EMBEDDED_BSR_PAYLOAD?.data?.length){
@@ -3248,11 +3252,6 @@ renderSmartCompetition=function(){v23BaseRenderSmartCompetition();v23RenderBrand
     hasInitialData=true;
   }
   if(!hasInitialData){try{const cached=localStorage.getItem('bsrCachedData');if(cached){const parsed=JSON.parse(cached);if(parsed.data&&parsed.data.length>0){ALL_DATA=parsed.data;ALL_MONTHS=parsed.months||[];refreshMonthsOnList();rebuildFilterOptions();applyFilters()}}}catch(e){console.warn('缓存数据加载失败:',e)}}
-  // Load AI settings
-  const aiSettings=JSON.parse(localStorage.getItem('bsrAiSettings')||'{}');
-  if(aiSettings.apiUrl)document.getElementById('aiApiUrl').value=aiSettings.apiUrl;
-  if(aiSettings.apiKey)document.getElementById('aiApiKey').value=aiSettings.apiKey;
-  if(aiSettings.model)document.getElementById('aiModel').value=aiSettings.model;
   window.addEventListener('resize',resizeAllCharts);
   // Register chart click handlers after data loads
   setTimeout(registerAllChartClickHandlers,100);
