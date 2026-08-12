@@ -378,6 +378,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   <button class="tab-btn" data-tab="attribute">属性×排名</button>
   <button class="tab-btn" data-tab="detail">BSR明细</button>
   <button class="tab-btn" data-tab="aiinsight">AI洞察</button>
+  <button class="tab-btn" data-tab="changelog">更新日志</button>
 </div>
 
 <!-- ==================== TAB 1: BSR总览 ==================== -->
@@ -595,7 +596,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
     <div class="stat-card pink clickable-stat" onclick="showCompareMetricDetail('dropout')"><div class="label">跌出榜数</div><div class="value" id="cmpDropOut">-</div></div>
   </div>
   <div class="charts-grid">
-    <div class="chart-card full"><h3>榜单留存率趋势 <span class="tag tag-blue">核心指标</span></h3><p style="font-size:11px;color:#999;margin:0 0 8px">连续月份TOP100留存率变化</p><div class="chart-wrap tall"><canvas id="chartRetainTrend"></canvas></div></div>
+    <div class="chart-card full"><h3>榜单留存、进入与退出趋势 <span class="tag tag-blue">核心指标</span></h3><p style="font-size:11px;color:#999;margin:0 0 8px">悬停查看留存率、留存链接、进入链接、退出链接及前后月份链接总数</p><div class="chart-wrap tall"><canvas id="chartRetainTrend"></canvas></div></div>
     <div class="chart-card"><h3>新入榜 vs 跌出榜</h3><p style="font-size:11px;color:#999;margin:0 0 8px">每月新进入TOP100数量、跌出TOP100数量</p><div class="chart-wrap"><canvas id="chartEntryDrop"></canvas></div></div>
     <div class="chart-card"><h3>品牌上榜数量趋势</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各品牌每月上榜产品数量变化</p><div class="chart-wrap"><canvas id="chartBrandTrend"></canvas></div></div>
     <div class="chart-card full"><h3>价格分布变化</h3><p style="font-size:11px;color:#999;margin:0 0 8px">各月份TOP100的价格带分布对比</p><div class="chart-wrap"><canvas id="chartPriceChange"></canvas></div></div>
@@ -782,6 +783,25 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
 </div>
 
+<!-- ==================== TAB 8: 更新日志 ==================== -->
+<div class="tab-page" id="page-changelog">
+  <div class="filter-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><h2 style="margin:0">更新日志</h2><p style="font-size:12px;color:#697386;margin:5px 0 0">记录每个版本新增功能、逻辑调整与问题修复，便于验收和追溯。</p></div>
+      <span class="tag tag-blue">BSR-TOP 当前版本</span>
+    </div>
+  </div>
+  <div class="table-card" style="margin-top:16px">
+    <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
+      <tr><td><strong>v14</strong></td><td>2026-08-12</td><td>修复月度对比与排名变化页的筛选重置：重置后自动恢复到最新月与上一个快照月。</td><td>避免月份为空时图表保留上一轮筛选结果；完成上线前全页签、筛选、悬停和明细链接验收。</td><td><span class="tag tag-blue">当前本地版</span></td></tr>
+      <tr><td><strong>v13</strong></td><td>2026-08-12</td><td>所有图表改用页面级悬停提示层，避免 Canvas 内置提示框在部分环境中仅显示半透明背景。</td><td>留存趋势及其他图表的悬停数据改为 HTML 文字渲染；保留原有数据维度、双坐标轴与明细提示。</td><td><span class="tag tag-green">历史版本</span></td></tr>
+      <tr><td><strong>v12</strong></td><td>2026-08-12</td><td>月度对比留存趋势改为留存率、进入链接数、退出链接数三条折线。</td><td>统一修复所有图表 tooltip 对比度问题；作为 v13 的上一版本保留。</td><td><span class="tag tag-green">历史版本</span></td></tr>
+      <tr><td><strong>v11</strong></td><td>2026-08-12</td><td>聚合图表统一增加链接数量、当月销量、销售额筛选器；销售额按当月销量 × 价格计算；月度对比增加进入/退出链接趋势。</td><td>覆盖总览、月度对比、竞争格局、风格/面料/价格热力图；留存趋势悬停可查看多维度链接数据，变化流动类图表保留原数量语义。</td><td><span class="tag tag-green">历史基线</span></td></tr>
+      <tr><td><strong>v9</strong></td><td>2026-08-10</td><td>完善 BSR 总览、下钻明细、属性热力图、竞品分析和数据质量提示。</td><td>修复 92 异常值、图表下钻对象错误、排名方向判断、进入/跌出混合明细、筛选标签删除等问题。</td><td><span class="tag tag-green">已发布</span></td></tr>
+    </tbody></table>
+  </div>
+</div>
+
 <!-- Import Modal -->
 <div class="modal-overlay" id="importModal">
   <div class="modal">
@@ -927,12 +947,12 @@ const COLORS=['#667eea','#f093fb','#4facfe','#43e97b','#fa709a','#fee140','#30cf
 function getColor(i){return COLORS[i%COLORS.length]}
 
 // ========== CHART INFRASTRUCTURE ==========
-const crosshairPlugin={id:'crosshair',afterDraw(chart){if(chart.config.type==='doughnut'||chart.config.type==='pie')return;if(chart.tooltip?._active?.length){const activePoint=chart.tooltip._active[0];const ctx=chart.ctx;const x=activePoint.element.x;const y=activePoint.element.y;ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(x,chart.scales.y.top);ctx.lineTo(x,chart.scales.y.bottom);ctx.lineWidth=1;ctx.strokeStyle='rgba(102,126,234,0.5)';ctx.stroke();ctx.restore();ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(chart.scales.x.left,y);ctx.lineTo(chart.scales.x.right,y);ctx.lineWidth=1;ctx.strokeStyle='rgba(102,126,234,0.3)';ctx.stroke();ctx.restore();ctx.save();ctx.beginPath();ctx.arc(x,y,5,0,2*Math.PI);ctx.fillStyle='#667eea';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.restore()}}};
+const crosshairPlugin={id:'crosshair',afterDraw(chart){if(chart.config.type==='doughnut'||chart.config.type==='pie')return;if(chart.tooltip?._active?.length){const activePoint=chart.tooltip._active[0],xScale=chart.scales.x||Object.values(chart.scales).find(scale=>scale.axis==='x'),yScale=chart.scales.y||chart.scales.yPercent||Object.values(chart.scales).find(scale=>scale.axis==='y');if(!xScale||!yScale)return;const ctx=chart.ctx;const x=activePoint.element.x;const y=activePoint.element.y;ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(x,yScale.top);ctx.lineTo(x,yScale.bottom);ctx.lineWidth=1;ctx.strokeStyle='rgba(102,126,234,0.5)';ctx.stroke();ctx.restore();ctx.save();ctx.beginPath();ctx.setLineDash([4,4]);ctx.moveTo(xScale.left,y);ctx.lineTo(xScale.right,y);ctx.lineWidth=1;ctx.strokeStyle='rgba(102,126,234,0.3)';ctx.stroke();ctx.restore();ctx.save();ctx.beginPath();ctx.arc(x,y,5,0,2*Math.PI);ctx.fillStyle='#667eea';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.restore()}}};
 Chart.register(ChartDataLabels,crosshairPlugin);
 Chart.defaults.font.family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif";
 Chart.defaults.font.size=11;Chart.defaults.color='#6b7280';
 Chart.defaults.plugins.legend.labels.usePointStyle=true;Chart.defaults.plugins.legend.labels.padding=16;Chart.defaults.plugins.legend.labels.font={size:11,weight:'500'};
-Chart.defaults.plugins.tooltip.backgroundColor='rgba(26,26,46,.9)';Chart.defaults.plugins.tooltip.mode='index';Chart.defaults.plugins.tooltip.intersect=false;Chart.defaults.plugins.tooltip.cornerRadius=8;Chart.defaults.plugins.tooltip.padding=10;
+Chart.defaults.plugins.tooltip.backgroundColor='rgba(26,26,46,.96)';Chart.defaults.plugins.tooltip.titleColor='#fff';Chart.defaults.plugins.tooltip.bodyColor='#fff';Chart.defaults.plugins.tooltip.footerColor='#fff';Chart.defaults.plugins.tooltip.borderColor='rgba(255,255,255,.22)';Chart.defaults.plugins.tooltip.borderWidth=1;Chart.defaults.plugins.tooltip.mode='index';Chart.defaults.plugins.tooltip.intersect=false;Chart.defaults.plugins.tooltip.cornerRadius=8;Chart.defaults.plugins.tooltip.padding=10;Chart.defaults.plugins.tooltip.displayColors=true;
 Chart.defaults.scale.grid.color='rgba(0,0,0,.04)';Chart.defaults.scale.border={display:false};
 Chart.defaults.elements.line.borderWidth=2;Chart.defaults.elements.line.tension=0.4;Chart.defaults.elements.point.radius=3;Chart.defaults.elements.point.hoverRadius=5;Chart.defaults.elements.bar.borderRadius=4;
 
@@ -982,12 +1002,26 @@ let charts={};
 function destroyChart(id){if(charts[id]){const canvas=document.getElementById(id);if(canvas&&canvas.__v5NativeClick)canvas.removeEventListener('click',canvas.__v5NativeClick);charts[id].destroy();delete charts[id]}}
 const chartClickHandlers={};
 function registerChartClick(chartId,handler){chartClickHandlers[chartId]=handler}
+function bsrExternalTooltip(context){
+  const {chart,tooltip}=context;let el=document.getElementById('bsrChartTooltip');
+  if(!el){el=document.createElement('div');el.id='bsrChartTooltip';el.style.cssText='position:fixed;z-index:99999;pointer-events:none;max-width:320px;padding:10px 12px;border:1px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(17,24,39,.97);box-shadow:0 10px 26px rgba(15,23,42,.28);color:#fff!important;font:12px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;opacity:0;transition:opacity .12s ease';document.body.appendChild(el)}
+  if(!tooltip||tooltip.opacity===0){el.style.opacity='0';return}
+  const title=(tooltip.title||[]).map(value=>`<div style="font-weight:700;color:#fff!important;margin-bottom:5px">${escapeHtml(value)}</div>`).join('');
+  const lines=(tooltip.body||[]).flatMap((item,index)=>{const color=tooltip.labelColors?.[index]?.backgroundColor||tooltip.labelColors?.[index]?.borderColor||'#94a3b8';return(item.lines||[]).map(value=>`<div style="display:flex;align-items:flex-start;gap:6px;color:#fff!important"><i style="display:inline-block;flex:0 0 8px;width:8px;height:8px;margin-top:5px;border-radius:50%;background:${color}"></i><span style="color:#fff!important">${escapeHtml(value)}</span></div>`)}).join('');
+  const extra=[...(tooltip.beforeBody||[]),...(tooltip.afterBody||[]),...(tooltip.footer||[])].map(value=>`<div style="color:#dbeafe!important;margin-top:3px">${escapeHtml(value)}</div>`).join('');
+  const fallback=!lines?(tooltip.dataPoints||[]).map(point=>`<div style="color:#fff!important">${escapeHtml(point.dataset.label||'数据')}: ${escapeHtml(point.formattedValue||point.raw||'')}</div>`).join(''):'';
+  el.innerHTML=title+(lines||fallback)+extra;const rect=chart.canvas.getBoundingClientRect();let left=rect.left+tooltip.caretX+14,top=rect.top+tooltip.caretY+14;el.style.left='0px';el.style.top='0px';el.style.opacity='1';const width=el.offsetWidth,height=el.offsetHeight;if(left+width>window.innerWidth-8)left=Math.max(8,rect.left+tooltip.caretX-width-14);if(top+height>window.innerHeight-8)top=Math.max(8,window.innerHeight-height-8);el.style.left=left+'px';el.style.top=top+'px';
+}
 function makeChart(id,config){
   destroyChart(id);const c=document.getElementById(id);if(!c)return null;
+  if(!config.options)config.options={};
+  const pluginOptions=config.options.plugins||(config.options.plugins={});
+  const chartTooltip=pluginOptions.tooltip;
+  const isSparkline=id.startsWith('spark_')||id.startsWith('kpiSpark');
+  pluginOptions.tooltip={enabled:false,backgroundColor:'rgba(26,26,46,.96)',titleColor:'#fff',bodyColor:'#fff',footerColor:'#fff',borderColor:'rgba(255,255,255,.22)',borderWidth:1,displayColors:true,padding:10,cornerRadius:8,...(chartTooltip&&typeof chartTooltip==='object'?chartTooltip:{}),enabled:false,external:isSparkline?undefined:bsrExternalTooltip};
   const nativeClickChart=['chartSmartScale','chartSmartBrandScale','chartCompSmartScale'].includes(id);
   // Add click handler if registered
   if(chartClickHandlers[id]){
-    if(!config.options)config.options={};
     if(nativeClickChart)config.options.events=[];
     else config.options.onClick=(event,elements)=>{
       if(elements.length>0)chartClickHandlers[id](elements[0].index,event,elements[0].datasetIndex);
@@ -1233,8 +1267,8 @@ function refreshMonthsOnList(){ALL_DATA.forEach(item=>{item._monthsOnList=ALL_MO
 function runUpdate(name,fn){try{fn()}catch(e){console.error(name+' error:',e)}}
 function applyFilters(){sanitizeAllData();runUpdate('overview stats',updateOverviewStats);runUpdate('overview charts',updateOverviewCharts);runUpdate('overview table',updateOverviewTable);runUpdate('compare charts',updateCompareCharts);runUpdate('change charts',updateChangeCharts);runUpdate('competition charts',updateCompCharts);runUpdate('attribute charts',updateAttrCharts);runUpdate('detail table',updateDetailTable);runUpdate('chart click handlers',registerAllChartClickHandlers);runUpdate('smart overview',renderSmartOverview);runUpdate('smart competition',renderSmartCompetition)}
 function resetOverviewFilters(){document.getElementById('fMonth').value='';document.getElementById('fSubCategory').value='';document.getElementById('fBrand').value='';applyFilters()}
-function resetCompareFilters(){['fBaseMonth','fCompareMonth','fCompareSubCat','fCompareBrand','fHeatmapStyle','fHeatmapFabric'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
-function resetChangeFilters(){['fChgBaseMonth','fChgCompareMonth','fChgSubCat','fChgBrand','fChgThreshold'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
+function resetCompareFilters(){['fCompareSubCat','fCompareBrand','fHeatmapStyle','fHeatmapFabric'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fBaseMonth'),compare=document.getElementById('fCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);applyFilters()}
+function resetChangeFilters(){['fChgSubCat','fChgBrand','fChgThreshold'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fChgBaseMonth'),compare=document.getElementById('fChgCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);applyFilters()}
 function resetCompFilters(){document.getElementById('fCompMonth').value='';document.getElementById('fCompSubCat').value='';applyFilters()}
 function resetAttrFilters(){['fAttrMonth','fAttrSubCat','fAttrBrand'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
 function resetDetailFilters(){['fDetailMonth','fDetailSubCat','fDetailBrand','fDetailRank','fDetailChange'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
@@ -2557,6 +2591,190 @@ function updateCompCharts(){
 
 const v7RegisterAllChartClickHandlers=v7OriginalRegisterAllChartClickHandlers;
 function registerAllChartClickHandlers(){v7RegisterAllChartClickHandlers();v8RegisterChangeClicks()}
+
+// ========== V10 METRIC SELECTORS ==========
+const v10MetricState={chartSmartScale:'sales',chartSmartBrandScale:'sales',chartCompSmartScale:'sales'};
+const v10MetricMeta={
+  links:{label:'链接数量',axis:'链接数量'},
+  sales:{label:'当月销量',axis:'当月销量'},
+  revenue:{label:'销售额（USD）',axis:'销售额（USD）'}
+};
+function v10MetricValue(row,month,metric){
+  if(metric==='links')return 1;
+  const sales=smartValidSales(row,month);
+  return metric==='revenue'?sales*safeNum(row['Buybox价格']):sales;
+}
+function v10FormatMetric(value,metric){
+  if(metric==='revenue')return '$'+Number(value||0).toLocaleString(undefined,{maximumFractionDigits:0});
+  return Number(value||0).toLocaleString();
+}
+function v10Aggregate(rows,groupKey,month,metric){
+  const map=new Map();
+  rows.forEach(row=>{
+    const label=groupKey(row)||'未标注';
+    const record=map.get(label)||{label,value:0,count:0};
+    record.value+=v10MetricValue(row,month,metric);record.count++;map.set(label,record);
+  });
+  return [...map.values()].sort((a,b)=>b.value-a.value);
+}
+function v10InstallMetricControls(){
+  const defs=[
+    ['chartSmartScale','小类市场规模'],
+    ['chartSmartBrandScale','品牌市场规模'],
+    ['chartCompSmartScale','品牌市场规模']
+  ];
+  defs.forEach(([chartId])=>{
+    const canvas=document.getElementById(chartId),card=canvas?.closest('.smart-chart-card'),heading=card?.querySelector('h3');
+    if(!heading)return;
+    heading.style.display='flex';heading.style.alignItems='center';heading.style.justifyContent='space-between';heading.style.gap='8px';
+    let host=heading.querySelector('[data-v10-metric-control]');
+    if(!host){
+      host=document.createElement('span');host.dataset.v10MetricControl='1';host.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:400;color:#7a8498;white-space:nowrap';
+      const label=document.createElement('span');label.textContent='指标';
+      const select=document.createElement('select');select.id=chartId+'Metric';select.style.cssText='border:1px solid #dbe2ef;border-radius:6px;background:#fff;color:#334155;padding:4px 22px 4px 7px;font-size:10px;cursor:pointer';
+      Object.entries(v10MetricMeta).forEach(([value,meta])=>{const option=document.createElement('option');option.value=value;option.textContent=meta.label;select.appendChild(option)});
+      select.addEventListener('change',()=>{v10MetricState[chartId]=select.value;v10RefreshMetricCharts()});
+      host.append(label,select);heading.appendChild(host);
+    }
+    const select=document.getElementById(chartId+'Metric');if(select)select.value=v10MetricState[chartId]||'sales';
+  });
+}
+function v10UpdateScaleChart(chartId,rows,metric){
+  const meta=v10MetricMeta[metric]||v10MetricMeta.sales;
+  const color=chartId==='chartSmartBrandScale'?'#43e97b':chartId==='chartCompSmartScale'?'#4facfe':'#667eea';
+  makeChart(chartId,{type:'bar',data:{labels:rows.map(row=>row.label),datasets:[{label:meta.label,data:rows.map(row=>row.value),backgroundColor:color,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${meta.label}: ${v10FormatMetric(ctx.raw,metric)}`}}},scales:{x:{beginAtZero:true,title:{display:true,text:meta.axis},ticks:{callback:value=>metric==='revenue'?'$'+Number(value||0).toLocaleString():Number(value||0).toLocaleString()}},y:{grid:{display:false}}}}});
+}
+function v10RefreshMetricCharts(){
+  v10InstallMetricControls();
+  const overviewMonth=smartCurrentMonth(smartState);
+  const overviewRows=smartUnique(smartFilteredRows(smartState,overviewMonth));
+  const subcats=v10Aggregate(overviewRows,row=>row['小类'],overviewMonth,v10MetricState.chartSmartScale).slice(0,15);
+  const brands=v10Aggregate(overviewRows,getBrand,overviewMonth,v10MetricState.chartSmartBrandScale).slice(0,15);
+  registerChartClick('chartSmartScale',index=>{if(subcats[index])v5DrillDown('overview','subcats',subcats[index].label)});
+  registerChartClick('chartSmartBrandScale',index=>{if(brands[index])v5DrillDown('overview','brands',brands[index].label)});
+  v10UpdateScaleChart('chartSmartScale',subcats,v10MetricState.chartSmartScale);
+  v10UpdateScaleChart('chartSmartBrandScale',brands,v10MetricState.chartSmartBrandScale);
+  const competitionMonth=smartCurrentMonth(compSmartState);
+  const competitionRows=smartUnique(smartFilteredRows(compSmartState,competitionMonth));
+  const competitionBrands=v10Aggregate(competitionRows,getBrand,competitionMonth,v10MetricState.chartCompSmartScale).slice(0,15);
+  registerChartClick('chartCompSmartScale',index=>{if(competitionBrands[index])v5DrillDown('competition','brands',competitionBrands[index].label)});
+  v10UpdateScaleChart('chartCompSmartScale',competitionBrands,v10MetricState.chartCompSmartScale);
+}
+const v10BaseRenderSmartOverview=renderSmartOverview;
+renderSmartOverview=function(){v10BaseRenderSmartOverview();v10RefreshMetricCharts()};
+const v10BaseRenderSmartCompetition=renderSmartCompetition;
+renderSmartCompetition=function(){v10BaseRenderSmartCompetition();v10RefreshMetricCharts()};
+
+// ========== V11 METRIC SELECTORS FOR AGGREGATION CHARTS ==========
+// Links, current-month sales and revenue are interchangeable only for aggregation charts.
+// Movement/status/rank charts keep their original semantics.
+const v11MetricState={
+  chartConcentration:'sales',chartBrandConcentration:'sales',chartPriceDistribution:'links',chartListingTime:'links',chartRatingDistribution:'links',
+  chartBrandTrend:'links',chartPriceChange:'links',chartCompBrandRank:'links',chartCompBrandShare:'sales',chartCompPosition:'links',chartCompPriceBrand:'links',
+  chartAttrStyle:'links',chartAttrFabric:'links',chartPriceRankDist:'links',attrStyleHeatmapContainer:'links',attrFabricHeatmapContainer:'links',priceRankHeatmapContainer:'links'
+};
+const v11MetricMeta={
+  links:{label:'\u94fe\u63a5\u6570\u91cf',axis:'\u94fe\u63a5\u6570\u91cf'},
+  sales:{label:'\u5f53\u6708\u9500\u91cf',axis:'\u5f53\u6708\u9500\u91cf'},
+  revenue:{label:'\u9500\u552e\u989d\uff08USD\uff09',axis:'\u9500\u552e\u989d\uff08USD\uff09'}
+};
+function v11MetricValue(row,month,metric){
+  if(metric==='links')return 1;
+  const sales=smartValidSales(row,month);
+  return metric==='revenue'?sales*safeNum(row?.['Buybox\u4ef7\u683c']):sales;
+}
+function v11FormatMetric(value,metric){
+  const n=Number(value||0);
+  return metric==='revenue'?'$'+n.toLocaleString(undefined,{maximumFractionDigits:0}):n.toLocaleString();
+}
+function v11MetricTick(value,metric){return metric==='revenue'?'$'+Number(value||0).toLocaleString():Number(value||0).toLocaleString()}
+function v11InstallMetricControl(id){
+  const target=document.getElementById(id);if(!target)return;
+  const card=target.closest('.chart-card,.smart-chart-card');const heading=card?.querySelector('h3')||card?.querySelector(':scope > div:first-child span')||card?.querySelector(':scope > div:first-child');if(!heading)return;const headingHost=heading.tagName==='SPAN'?heading.parentElement:heading;
+  headingHost.style.display='flex';headingHost.style.alignItems='center';headingHost.style.justifyContent='space-between';headingHost.style.gap='8px';
+  let host=headingHost.querySelector('[data-v11-metric-control]');
+  if(!host){
+    host=document.createElement('span');host.dataset.v11MetricControl='1';host.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:400;color:#7a8498;white-space:nowrap';
+    const label=document.createElement('span');label.textContent='\u6307\u6807';
+    const select=document.createElement('select');select.id=id+'Metric';select.style.cssText='border:1px solid #dbe2ef;border-radius:6px;background:#fff;color:#334155;padding:4px 22px 4px 7px;font-size:10px;cursor:pointer';
+    Object.entries(v11MetricMeta).forEach(([value,meta])=>{const option=document.createElement('option');option.value=value;option.textContent=meta.label;select.appendChild(option)});
+    select.addEventListener('change',()=>{v11MetricState[id]=select.value;v11RefreshAllMetrics()});host.append(label,select);headingHost.appendChild(host);
+  }
+  const select=document.getElementById(id+'Metric');if(select)select.value=v11MetricState[id]||'links';
+}
+function v11Aggregate(rows,groupKey,month,metric){
+  const map=new Map();rows.forEach(row=>{const label=groupKey(row)||'\u672a\u6807\u6ce8';const item=map.get(label)||{label,value:0,count:0};item.value+=v11MetricValue(row,month,metric);item.count++;map.set(label,item)});
+  return [...map.values()].sort((a,b)=>b.value-a.value);
+}
+function v11PctLine(values,total){let sum=0;return values.map(value=>{sum+=value;return total>0?Math.round(sum/total*1000)/10:0})}
+function v11BarCumulative(id,labels,values,metric,xTitle,color,secondaryLabel){
+  const meta=v11MetricMeta[metric]||v11MetricMeta.links;const total=values.reduce((a,b)=>a+b,0);const pct=v11PctLine(values,total);
+  makeChart(id,{type:'bar',data:{labels,datasets:[{label:meta.label,data:values,backgroundColor:color,borderRadius:2,order:2,yAxisID:'y'},{label:secondaryLabel||'\u9500\u552e\u989d\u7d2f\u8ba1\u5360\u6bd4',data:pct,type:'line',borderColor:'#22c55e',backgroundColor:'transparent',tension:.3,borderWidth:2,pointRadius:1,pointBackgroundColor:'#22c55e',order:1,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{usePointStyle:true,pointStyle:'rect',font:{size:11}}},tooltip:{callbacks:{label:ctx=>ctx.dataset.yAxisID==='y1'?ctx.dataset.label+': '+ctx.raw+'%':meta.label+': '+v11FormatMetric(ctx.raw,metric)}}},scales:{x:{title:{display:true,text:xTitle},grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{position:'left',title:{display:true,text:meta.axis},beginAtZero:true,ticks:{callback:value=>v11MetricTick(value,metric)}},y1:{position:'right',title:{display:true,text:'\u7d2f\u8ba1\u5360\u6bd4(%)'},beginAtZero:true,max:100,grid:{display:false},ticks:{callback:value=>value+'%'}}}}});
+}
+function v11RefreshOverviewMetrics(){
+  ['chartConcentration','chartBrandConcentration','chartPriceDistribution','chartListingTime','chartRatingDistribution'].forEach(v11InstallMetricControl);
+  const data=getOverviewSnapshotData();const month=monthStrToKey(document.getElementById('fMonth')?.value||'')||ALL_MONTHS[ALL_MONTHS.length-1];
+  const metric=v11MetricState.chartConcentration;const topN=parseInt(document.getElementById('fTopN')?.value||'100');
+  const ranked=data.filter(row=>safeNum(row['\u5c0f\u7c7b\u6392\u540d'])>0).sort((a,b)=>safeNum(a['\u5c0f\u7c7b\u6392\u540d'])-safeNum(b['\u5c0f\u7c7b\u6392\u540d'])).slice(0,topN);v11BarCumulative('chartConcentration',ranked.map(row=>safeNum(row['\u5c0f\u7c7b\u6392\u540d'])),ranked.map(row=>v11MetricValue(row,month,metric)),metric,'\u5c0f\u7c7b\u6392\u540d','#f59e0b');
+  const brandMetric=v11MetricState.chartBrandConcentration;const brands=v11Aggregate(data,getBrand,month,brandMetric).filter(row=>row.label&&row.label!=='\u6682\u65e0').slice(0,Math.min(20,topN));v11BarCumulative('chartBrandConcentration',brands.map(row=>row.label),brands.map(row=>row.value),brandMetric,'\u54c1\u724c','#f59e0b');
+  const prices=data.map(row=>safeNum(row['Buybox\u4ef7\u683c'])).filter(value=>value>0);const step=parseInt(document.getElementById('fPriceStep')?.value||'1');let priceBuckets=[];
+  if(prices.length){const min=Math.floor(Math.min(...prices));const max=Math.ceil(Math.max(...prices));for(let p=min;p<max;p+=step)priceBuckets.push({lo:p,hi:p+step,label:p+'-'+(p+step)})}if(!priceBuckets.length)priceBuckets=[{lo:0,hi:999,label:'0+'}];
+  const priceMetric=v11MetricState.chartPriceDistribution;const priceRows=priceBuckets.map(bucket=>{const rows=data.filter(row=>{const value=safeNum(row['Buybox\u4ef7\u683c']);return value>=bucket.lo&&value<bucket.hi});return{label:bucket.label,value:rows.reduce((sum,row)=>sum+v11MetricValue(row,month,priceMetric),0)}});v11BarCumulative('chartPriceDistribution',priceRows.map(row=>'$'+row.label),priceRows.map(row=>row.value),priceMetric,'\u4ef7\u683c\u533a\u95f4(USD)','#f59e0b');
+  const timeBuckets=[{label:'1\u4e2a\u6708\u5185',lo:0,hi:30},{label:'1-3\u4e2a\u6708',lo:30,hi:90},{label:'3-6\u4e2a\u6708',lo:90,hi:180},{label:'6-12\u4e2a\u6708',lo:180,hi:365},{label:'1-1.5\u5e74',lo:365,hi:547},{label:'1.5-2\u5e74',lo:547,hi:730},{label:'2-2.5\u5e74',lo:730,hi:912},{label:'2.5-3\u5e74',lo:912,hi:1095},{label:'3\u5e74\u4ee5\u4e0a',lo:1095,hi:Infinity}];const now=new Date();const timeMetric=v11MetricState.chartListingTime;const timeRows=timeBuckets.map(bucket=>{const rows=data.filter(row=>{const date=parseDateValue(row['\u4e0a\u67b6\u65e5\u671f']);if(!date)return false;const days=Math.floor((now-date)/864e5);return days>=bucket.lo&&days<bucket.hi});return{label:bucket.label,value:rows.reduce((sum,row)=>sum+v11MetricValue(row,month,timeMetric),0)}});v11BarCumulative('chartListingTime',timeRows.map(row=>row.label),timeRows.map(row=>row.value),timeMetric,'\u4e0a\u67b6\u65f6\u95f4','#f59e0b');
+  const ratingBuckets=[{label:'3.0-3.5',lo:3,hi:3.5},{label:'3.5-4.0',lo:3.5,hi:4},{label:'4.0-4.2',lo:4,hi:4.2},{label:'4.2-4.4',lo:4.2,hi:4.4},{label:'4.4-4.6',lo:4.4,hi:4.6},{label:'4.6-4.8',lo:4.6,hi:4.8},{label:'4.8-5.0',lo:4.8,hi:5.01}];const ratingMetric=v11MetricState.chartRatingDistribution;const ratingRows=ratingBuckets.map(bucket=>{const rows=data.filter(row=>{const value=safeNum(row['\u8bc4\u5206']);return value>=bucket.lo&&value<bucket.hi});return{label:bucket.label,value:rows.reduce((sum,row)=>sum+v11MetricValue(row,month,ratingMetric),0)}});v11BarCumulative('chartRatingDistribution',ratingRows.map(row=>row.label),ratingRows.map(row=>row.value),ratingMetric,'\u8bc4\u5206\u533a\u95f4','#f59e0b');
+}
+function v11CompareRows(){let rows=ALL_DATA;const sub=document.getElementById('fCompareSubCat');const brand=document.getElementById('fCompareBrand');if(sub?.value)rows=rows.filter(row=>row['\u5c0f\u7c7b']===sub.value);if(brand?.value)rows=rows.filter(row=>getBrand(row).toLowerCase()===brand.value.toLowerCase());return rows}
+function v11RefreshCompareMetrics(){
+  ['chartBrandTrend','chartPriceChange'].forEach(v11InstallMetricControl);const rows=v11CompareRows();const metric=v11MetricState.chartBrandTrend;const brandMonth=new Map();
+  ALL_MONTHS.forEach(month=>{smartUnique(rows.filter(row=>row._dataMonth===month)).forEach(row=>{const brand=getBrand(row);if(!brand||brand==='\u6682\u65e0'||!/^[a-zA-Z]/.test(brand))return;const record=brandMonth.get(brand)||{};record[month]=(record[month]||0)+v11MetricValue(row,month,metric);brandMonth.set(brand,record)})});
+  const topBrands=[...brandMonth.entries()].map(([label,values])=>({label,total:Object.values(values).reduce((a,b)=>a+b,0),values})).sort((a,b)=>b.total-a.total).slice(0,6);const colors=['#667eea','#fa709a','#43e97b','#fee140','#4facfe','#f093fb'];const meta=v11MetricMeta[metric];
+  makeChart('chartBrandTrend',{type:'line',data:{labels:ALL_MONTHS.map(monthKeyToLabel),datasets:topBrands.map((item,index)=>({label:item.label,data:ALL_MONTHS.map(month=>item.values[month]||0),borderColor:colors[index],backgroundColor:colors[index]+'10',tension:.3,borderWidth:2,pointRadius:3}))},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+v11FormatMetric(ctx.raw,metric)}}},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{beginAtZero:true,title:{display:true,text:meta.axis},ticks:{callback:value=>v11MetricTick(value,metric)}}}}});
+  const priceZones=['$0-10','$10-20','$20-30','$30-50','$50+'];const priceMetric=v11MetricState.chartPriceChange;const matrix=ALL_MONTHS.map(month=>{const values=priceZones.map(()=>0);smartUnique(rows.filter(row=>row._dataMonth===month)).forEach(row=>{const price=safeNum(row['Buybox\u4ef7\u683c']);if(price<=0)return;const index=price<10?0:price<20?1:price<30?2:price<50?3:4;values[index]+=v11MetricValue(row,month,priceMetric)});return values});const priceMeta=v11MetricMeta[priceMetric];
+  makeChart('chartPriceChange',{type:'bar',data:{labels:ALL_MONTHS.map(monthKeyToLabel),datasets:priceZones.map((label,index)=>({label,data:matrix.map(row=>row[index]),backgroundColor:getColor(index),borderRadius:3}))},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+v11FormatMetric(ctx.raw,priceMetric)}}},scales:{x:{stacked:true,grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{stacked:true,beginAtZero:true,title:{display:true,text:priceMeta.axis},ticks:{callback:value=>v11MetricTick(value,priceMetric)}}}}});
+}
+function v11CompetitionRows(){const month=monthStrToKey(document.getElementById('fCompMonth')?.value||'')||ALL_MONTHS[ALL_MONTHS.length-1];let rows=ALL_DATA.filter(row=>row._dataMonth===month);const sub=document.getElementById('fCompSubCat');if(sub?.value)rows=rows.filter(row=>row['\u5c0f\u7c7b']===sub.value);return{month,rows:smartUnique(rows)}}
+function v11RefreshCompetitionMetrics(){
+  ['chartCompBrandRank','chartCompBrandShare','chartCompPosition','chartCompPriceBrand'].forEach(v11InstallMetricControl);const {month,rows}=v11CompetitionRows();
+  const grouped=new Map();rows.forEach(row=>{const brand=getBrand(row);if(!brand||brand==='\u6682\u65e0'||!/^[a-zA-Z]/.test(brand))return;const item=grouped.get(brand)||{label:brand,rows:[]};item.rows.push(row);grouped.set(brand,item)});const sortedFor=metric=>[...grouped.values()].map(item=>({...item,value:item.rows.reduce((sum,row)=>sum+v11MetricValue(row,month,metric),0)})).sort((a,b)=>b.value-a.value);const sorted=sortedFor(v11MetricState.chartCompBrandRank);
+  const rankMetric=v11MetricState.chartCompBrandRank;const rankTop=sorted.slice(0,15);makeChart('chartCompBrandRank',{type:'bar',data:{labels:rankTop.map(row=>row.label),datasets:[{label:v11MetricMeta[rankMetric].label,data:rankTop.map(row=>row.value),backgroundColor:rankTop.map((_,index)=>getColor(index)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>v11MetricMeta[rankMetric].label+': '+v11FormatMetric(ctx.raw,rankMetric)}}},scales:{x:{beginAtZero:true,title:{display:true,text:v11MetricMeta[rankMetric].axis},ticks:{callback:value=>v11MetricTick(value,rankMetric)}}}}});
+  const shareMetric=v11MetricState.chartCompBrandShare;const shareRows=sortedFor(shareMetric);const shareTotal=shareRows.reduce((sum,row)=>sum+row.value,0);const shareTop=shareRows.slice(0,8);if(shareTotal>0)makeChart('chartCompBrandShare',{type:'doughnut',data:{labels:shareTop.map(row=>row.label),datasets:[{data:shareTop.map(row=>Math.round(row.value/shareTotal*1000)/10),backgroundColor:shareTop.map((_,index)=>getColor(index)),borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'},tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.raw+'% ('+v11MetricMeta[shareMetric].label+')'}}}}});else destroyChart('chartCompBrandShare');
+  const positionMetric=v11MetricState.chartCompPosition;const positionRows=sortedFor(positionMetric).slice(0,15).map(row=>{const avgPrice=avg(row.rows.map(item=>safeNum(item['Buybox\u4ef7\u683c'])).filter(value=>value>0));const avgRank=avg(row.rows.map(item=>safeNum(item['\u5c0f\u7c7b\u6392\u540d'])).filter(value=>value>0));const value=row.value;return{x:Math.round(avgPrice*100)/100,y:Math.round(avgRank*10)/10,r:Math.min(Math.max(Math.sqrt(Math.max(value,0))*3,4),20),label:row.label,value}});const positionMeta=v11MetricMeta[positionMetric];
+  makeChart('chartCompPosition',{type:'bubble',data:{datasets:[{label:'\u54c1\u724c',data:positionRows,backgroundColor:positionRows.map((_,index)=>getColor(index)+'88'),borderColor:positionRows.map((_,index)=>getColor(index)),borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const point=positionRows[ctx.dataIndex];return point.label+' | $'+point.x+' | \u6392\u540d'+point.y+' | '+positionMeta.label+': '+v11FormatMetric(point.value,positionMetric)}}}},scales:{x:{title:{display:true,text:'\u5e73\u5747\u4ef7\u683c (USD)'},grid:{color:'#f0f0f0'}},y:{title:{display:true,text:'\u5e73\u5747\u6392\u540d'},reverse:true,grid:{color:'#f0f0f0'}}}}});
+  const priceZones=['$0-10','$10-20','$20-30','$30-50','$50+'];const pbMetric=v11MetricState.chartCompPriceBrand;const topBrands=sortedFor(pbMetric).slice(0,8).map(row=>row.label);const pbDatasets=priceZones.map((label,index)=>({label,data:topBrands.map(brand=>grouped.get(brand).rows.reduce((sum,row)=>{const price=safeNum(row['Buybox\u4ef7\u683c']);const inZone=index===0?price>0&&price<10:index===1?price>=10&&price<20:index===2?price>=20&&price<30:index===3?price>=30&&price<50:price>=50;return sum+(inZone?v11MetricValue(row,month,pbMetric):0)},0)),backgroundColor:getColor(index),borderRadius:3}));makeChart('chartCompPriceBrand',{type:'bar',data:{labels:topBrands,datasets:pbDatasets},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+v11FormatMetric(ctx.raw,pbMetric)}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,title:{display:true,text:v11MetricMeta[pbMetric].axis},ticks:{callback:value=>v11MetricTick(value,pbMetric)}}}}});
+  const legend=document.getElementById('compPositionLegend');if(legend)legend.innerHTML=positionRows.map((point,index)=>`<span class="v8-brand-legend-item"><i class="v8-brand-legend-dot" style="background:${getColor(index)}"></i>${escapeHtml(point.label)}</span>`).join('');
+}
+function v11AttrRows(){const month=monthStrToKey(document.getElementById('fAttrMonth')?.value||'')||ALL_MONTHS[ALL_MONTHS.length-1];let rows=ALL_DATA.filter(row=>row._dataMonth===month);const sub=document.getElementById('fAttrSubCat');const brand=document.getElementById('fAttrBrand');if(sub?.value)rows=rows.filter(row=>v8Field(row,'subcat')===sub.value);if(brand?.value)rows=rows.filter(row=>getBrand(row).toLowerCase()===brand.value.toLowerCase());return{month,rows:smartUnique(rows)}}
+function v11AttrValue(row,key){const value=v8Field(row,key);return value&&String(value).trim()!=='92'&&value!=='\u6682\u65e0'&&value!=='NaN'?String(value):''}
+function v11RefreshAttributeMetrics(){
+  ['chartAttrStyle','chartAttrFabric','chartPriceRankDist','attrStyleHeatmapContainer','attrFabricHeatmapContainer','priceRankHeatmapContainer'].forEach(v11InstallMetricControl);const {month,rows}=v11AttrRows();
+  const renderDistribution=(id,key)=>{const metric=v11MetricState[id];const entries=v11Aggregate(rows,row=>v11AttrValue(row,key),month,metric).filter(row=>row.label&&row.label!=='\u672a\u6807\u6ce8').slice(0,12);if(!entries.length){destroyChart(id);return}const meta=v11MetricMeta[metric];makeChart(id,{type:'bar',data:{labels:entries.map(row=>row.label),datasets:[{label:meta.label,data:entries.map(row=>row.value),backgroundColor:entries.map((_,index)=>getColor(index)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>meta.label+': '+v11FormatMetric(ctx.raw,metric)}}},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},y:{beginAtZero:true,title:{display:true,text:meta.axis},ticks:{callback:value=>v11MetricTick(value,metric)}}}}})};
+  renderDistribution('chartAttrStyle','style');renderDistribution('chartAttrFabric','fabric');
+  const priceMetric=v11MetricState.chartPriceRankDist;const priceZones=['$0-10','$10-20','$20-30','$30-50','$50+'];const rankTiers=['1-10','11-30','31-50','51-100'];const tierColors=['#43e97b','#4facfe','#fee140','#fa709a'];const priceRankData=rankTiers.map((tier,index)=>{const [lo,hi]=tier.split('-').map(Number);return{label:tier,data:priceZones.map(zone=>rows.reduce((sum,row)=>{const price=safeNum(v8Field(row,'price'));const rank=safeNum(v8Field(row,'rank'));const inZone=zone==='$0-10'?price>0&&price<10:zone==='$10-20'?price>=10&&price<20:zone==='$20-30'?price>=20&&price<30:zone==='$30-50'?price>=30&&price<50:price>=50;return sum+(inZone&&rank>=lo&&rank<=hi?v11MetricValue(row,month,priceMetric):0)},0)),backgroundColor:tierColors[index],borderRadius:3}});makeChart('chartPriceRankDist',{type:'bar',data:{labels:priceZones,datasets:priceRankData},options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+v11FormatMetric(ctx.raw,priceMetric)}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,title:{display:true,text:v11MetricMeta[priceMetric].axis},ticks:{callback:value=>v11MetricTick(value,priceMetric)}}}}});
+  const renderHeatmap=(containerId,attrKey)=>{const metric=v11MetricState[containerId];const container=document.getElementById(containerId);if(!container)return;const grouped=new Map();rows.forEach(row=>{const value=v11AttrValue(row,attrKey);const range=v8RankBucket(v8Field(row,'rank'));if(!value||!range)return;const item=grouped.get(value)||{value:0,buckets:{}};const amount=v11MetricValue(row,month,metric);item.value+=amount;item.buckets[range]=(item.buckets[range]||0)+amount;grouped.set(value,item)});const values=[...grouped.entries()].sort((a,b)=>b[1].value-a[1].value).slice(0,15);if(!values.length){container.innerHTML='<p style="padding:20px;text-align:center;color:#999">\u6682\u65e0\u53ef\u7528\u5c5e\u6027\u6570\u636e</p>';return}const max=Math.max(1,...values.flatMap(([,item])=>V8_RANGES.map(range=>item.buckets[range]||0)));let html=`<div style="display:grid;grid-template-columns:110px repeat(10,minmax(34px,1fr));gap:2px;min-width:520px"><div class="heatmap-label">${escapeHtml(attrKey)}\\u2193 \\u6392\\u540d\\u2192</div>`;V8_RANGES.forEach(range=>{html+=`<div class="heatmap-label">${range}</div>`});values.forEach(([value,item])=>{html+=`<div class="heatmap-label" style="text-align:right;padding-right:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(value)}">${escapeHtml(value)}</div>`;V8_RANGES.forEach(range=>{const amount=item.buckets[range]||0;const alpha=amount?(.12+.88*amount/max):0;html+=`<div class="heatmap-cell" data-attr-value="${encodeURIComponent(value)}" data-range="${range}" style="background:${amount?`rgba(79,172,254,${alpha})`:'#f5f5f5'};color:${amount&&alpha>.55?'#fff':'#24324b'}" title="${escapeHtml(value)} · ${range}：${v11FormatMetric(amount,metric)}">${amount?v11FormatMetric(amount,metric):''}</div>`})});html+='</div>';container.innerHTML=html;container.querySelectorAll('.heatmap-cell').forEach(cell=>cell.addEventListener('click',()=>{const value=decodeURIComponent(cell.dataset.attrValue);const [lo,hi]=cell.dataset.range.split('-').map(Number);const items=rows.filter(row=>v11AttrValue(row,attrKey)===value&&safeNum(v8Field(row,'rank'))>=lo&&safeNum(v8Field(row,'rank'))<=hi);showProductList(`${attrKey}=${value} · ${cell.dataset.range}`,`${attrKey} · ${cell.dataset.range} · ${v11MetricMeta[metric].label}`,items)}))};
+  renderHeatmap('attrStyleHeatmapContainer','style');renderHeatmap('attrFabricHeatmapContainer','fabric');
+  const priceHeatMetric=v11MetricState.priceRankHeatmapContainer;const zones=['$0-10','$10-20','$20-30','$30-50','$50+'];const matrix=zones.map(()=>V8_RANGES.map(()=>0));rows.forEach(row=>{const price=safeNum(v8Field(row,'price'));const range=v8RankBucket(v8Field(row,'rank'));if(price<=0||!range)return;const zoneIndex=price<10?0:price<20?1:price<30?2:price<50?3:4;matrix[zoneIndex][V8_RANGES.indexOf(range)]+=v11MetricValue(row,month,priceHeatMetric)});const max=Math.max(1,...matrix.flat());const container=document.getElementById('priceRankHeatmapContainer');if(container){let html=`<div style="display:grid;grid-template-columns:76px repeat(10,minmax(34px,1fr));gap:2px;min-width:520px"><div class="heatmap-label">\u4ef7\u683c\\u2193 \\u6392\\u540d\\u2192</div>`;V8_RANGES.forEach(range=>{html+=`<div class="heatmap-label">${range}</div>`});zones.forEach((zone,zi)=>{html+=`<div class="heatmap-label" style="text-align:right;padding-right:6px">${zone}</div>`;V8_RANGES.forEach((range,ri)=>{const amount=matrix[zi][ri];const alpha=amount?(.12+.88*amount/max):0;html+=`<div class="heatmap-cell" data-price-zone="${zone}" data-range="${range}" style="background:${amount?`rgba(245,158,11,${alpha})`:'#f5f5f5'};color:${amount&&alpha>.55?'#fff':'#24324b'}" title="${zone} · ${range}：${v11FormatMetric(amount,priceHeatMetric)}">${amount?v11FormatMetric(amount,priceHeatMetric):''}</div>`})});html+='</div>';container.innerHTML=html;container.querySelectorAll('.heatmap-cell').forEach(cell=>cell.addEventListener('click',()=>{const zone=cell.dataset.priceZone;const [lo,hi]=cell.dataset.range.split('-').map(Number);const items=rows.filter(row=>{const price=safeNum(v8Field(row,'price'));const rank=safeNum(v8Field(row,'rank'));const inZone=zone==='$0-10'?price>0&&price<10:zone==='$10-20'?price>=10&&price<20:zone==='$20-30'?price>=20&&price<30:zone==='$30-50'?price>=30&&price<50:price>=50;return inZone&&rank>=lo&&rank<=hi});showProductList(`${zone} · ${cell.dataset.range}`,`${zone} · ${cell.dataset.range} · ${v11MetricMeta[priceHeatMetric].label}`,items)}))}
+}
+/*function v11RenderRetentionFlowTrend(){
+  const rows=(()=>{let value=ALL_DATA;const sub=document.getElementById('fCompareSubCat');const brand=document.getElementById('fCompareBrand');if(sub?.value)value=value.filter(row=>row['小类']===sub.value);if(brand?.value)value=value.filter(row=>getBrand(row).toLowerCase()===brand.value.toLowerCase());return value})();
+  const pairs=[];for(let index=1;index<ALL_MONTHS.length;index++)pairs.push({previous:ALL_MONTHS[index-1],current:ALL_MONTHS[index]});
+  const flowRows=pairs.map(pair=>{const previous=new Set(rows.filter(row=>row._dataMonth===pair.previous).map(getProductKey).filter(Boolean));const current=new Set(rows.filter(row=>row._dataMonth===pair.current).map(getProductKey).filter(Boolean));let retained=0;current.forEach(key=>{if(previous.has(key))retained++});const entered=[...current].filter(key=>!previous.has(key)).length;const exited=[...previous].filter(key=>!current.has(key)).length;return{label:monthKeyToLabel(pair.current),previousCount:previous.size,currentCount:current.size,retained,entered,exited,rate:previous.size?Math.round(retained/previous.size*1000)/10:0}});
+  const tooltipRows=flowRows;makeChart('chartRetainTrend',{type:'bar',data:{labels:flowRows.map(row=>row.label),datasets:[{type:'bar',label:'进入链接数',data:flowRows.map(row=>row.entered),backgroundColor:'rgba(67,233,123,.65)',borderRadius:4,yAxisID:'yCount',order:2},{type:'bar',label:'退出链接数',data:flowRows.map(row=>row.exited),backgroundColor:'rgba(250,112,154,.65)',borderRadius:4,yAxisID:'yCount',order:3},{type:'line',label:'留存率(%)',data:flowRows.map(row=>row.rate),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.12)',fill:true,tension:.3,borderWidth:2,pointRadius:4,pointBackgroundColor:'#667eea',pointBorderColor:'#fff',pointBorderWidth:2,yAxisID:'yPercent',order:1}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},yPercent:{position:'left',beginAtZero:true,max:100,title:{display:true,text:'留存率(%)'},ticks:{callback:value=>value+'%'}},yCount:{position:'right',beginAtZero:true,title:{display:true,text:'链接数'},grid:{drawOnChartArea:false},ticks:{precision:0}}},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.yAxisID==='yPercent'?ctx.dataset.label+': '+ctx.raw+'%':ctx.dataset.label+': '+Number(ctx.raw||0).toLocaleString(),afterBody:items=>{const row=tooltipRows[items[0]?.dataIndex];return row?[`上月链接数: ${row.previousCount.toLocaleString()}`,`本月链接数: ${row.currentCount.toLocaleString()}`,`留存链接数: ${row.retained.toLocaleString()}`,`进入链接数: ${row.entered.toLocaleString()}`,`退出链接数: ${row.exited.toLocaleString()}`]:[]}}}}});
+}*/
+function v11RenderRetentionFlowTrend(){
+  let rows=ALL_DATA;const sub=document.getElementById('fCompareSubCat');const brand=document.getElementById('fCompareBrand');
+  if(sub?.value)rows=rows.filter(row=>row['小类']===sub.value);if(brand?.value)rows=rows.filter(row=>getBrand(row).toLowerCase()===brand.value.toLowerCase());
+  const pairs=[];for(let index=1;index<ALL_MONTHS.length;index++)pairs.push({previous:ALL_MONTHS[index-1],current:ALL_MONTHS[index]});
+  const flowRows=pairs.map(pair=>{const previous=new Set(rows.filter(row=>row._dataMonth===pair.previous).map(getProductKey).filter(Boolean));const current=new Set(rows.filter(row=>row._dataMonth===pair.current).map(getProductKey).filter(Boolean));let retained=0;current.forEach(key=>{if(previous.has(key))retained++});return{label:monthKeyToLabel(pair.current),previousCount:previous.size,currentCount:current.size,retained,entered:[...current].filter(key=>!previous.has(key)).length,exited:[...previous].filter(key=>!current.has(key)).length,rate:previous.size?Math.round(retained/previous.size*1000)/10:0}});
+  const tooltip={callbacks:{label(ctx){return ctx.dataset.yAxisID==='yPercent'?ctx.dataset.label+': '+ctx.raw+'%':ctx.dataset.label+': '+Number(ctx.raw||0).toLocaleString()},afterBody(items){const row=flowRows[items[0]?.dataIndex];return row?[`上月链接数: ${row.previousCount.toLocaleString()}`,`本月链接数: ${row.currentCount.toLocaleString()}`,`留存链接数: ${row.retained.toLocaleString()}`,`进入链接数: ${row.entered.toLocaleString()}`,`退出链接数: ${row.exited.toLocaleString()}`]:[]}}};
+  const datasets=[{type:'line',label:'进入链接数',data:flowRows.map(row=>row.entered),borderColor:'#43e97b',backgroundColor:'#43e97b',fill:false,tension:.3,borderWidth:2,pointRadius:4,pointBackgroundColor:'#43e97b',pointBorderColor:'#fff',pointBorderWidth:2,yAxisID:'yCount',order:2},{type:'line',label:'退出链接数',data:flowRows.map(row=>row.exited),borderColor:'#fa709a',backgroundColor:'#fa709a',fill:false,tension:.3,borderWidth:2,pointRadius:4,pointBackgroundColor:'#fa709a',pointBorderColor:'#fff',pointBorderWidth:2,yAxisID:'yCount',order:3},{type:'line',label:'留存率(%)',data:flowRows.map(row=>row.rate),borderColor:'#667eea',backgroundColor:'#667eea',fill:false,tension:.3,borderWidth:2,pointRadius:4,pointBackgroundColor:'#667eea',pointBorderColor:'#fff',pointBorderWidth:2,yAxisID:'yPercent',order:1}];
+  const options={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{x:{grid:{display:false},ticks:{maxRotation:45,font:{size:9}}},yPercent:{position:'left',beginAtZero:true,max:100,title:{display:true,text:'留存率(%)'},ticks:{callback:value=>value+'%'}},yCount:{position:'right',beginAtZero:true,title:{display:true,text:'链接数'},grid:{drawOnChartArea:false},ticks:{precision:0}}},plugins:{tooltip}};
+  makeChart('chartRetainTrend',{type:'line',data:{labels:flowRows.map(row=>row.label),datasets},options});
+}
+const v11BaseUpdateOverviewCharts=updateOverviewCharts;updateOverviewCharts=function(){v11BaseUpdateOverviewCharts();v11RefreshOverviewMetrics()};
+const v11BaseUpdateCompareCharts=updateCompareCharts;updateCompareCharts=function(){v11BaseUpdateCompareCharts();v11RefreshCompareMetrics();v11RenderRetentionFlowTrend()};
+const v11BaseUpdateCompCharts=updateCompCharts;updateCompCharts=function(){v11BaseUpdateCompCharts();v11RefreshCompetitionMetrics()};
+const v11BaseUpdateAttrCharts=updateAttrCharts;updateAttrCharts=function(){v11BaseUpdateAttrCharts();v11RefreshAttributeMetrics()};
+function v11RefreshAllMetrics(){v11RefreshOverviewMetrics();v11RefreshCompareMetrics();v11RefreshCompetitionMetrics();v11RefreshAttributeMetrics();resizeAllCharts()}
 
 // ========== V9 INTERACTION PATCH ==========
 function v9DatasetIndex(chart,event,fallback){
