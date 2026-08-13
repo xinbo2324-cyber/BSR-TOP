@@ -908,7 +908,8 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
   <div class="table-card" style="margin-top:16px">
     <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
-      <tr><td><strong>v29</strong></td><td>2026-08-13</td><td>明细列表筛选升级为可搜索的勾选多选，支持全选、反选、清空和多项组合筛选；品牌选项按当前明细中的去重链接数降序显示。</td><td>筛选浮层改为页面级定位，修复数据较少时被表头或容器裁切的问题；修复发布后切换指标触发 Chart.js 配置递归、导致“价格分布变化”和“价格带×品牌分布”空白的回归问题；清除旧白色描边标签冲突，并修复切换“链接数量 / 当月销量 / 销售额”后数值标签丢失的问题。</td><td><span class="tag tag-green">正式发布</span></td></tr>
+      <tr><td><strong>v29 修复</strong></td><td>2026-08-13</td><td>—</td><td>修复“排名链接销量分布”点击明细错误读取横轴品牌名、导致任意柱形均显示“排名 0 / 0 个产品”的问题；点击后改为直接使用该柱对应链接的实际排名、ASIN 和快照月份。</td><td><span class="tag tag-blue">本地待发布</span></td></tr>
+      <tr><td><strong>v29</strong></td><td>2026-08-13</td><td>明细列表筛选升级为可搜索的勾选多选，支持全选、反选、清空和多项组合筛选；品牌选项按当前明细中的去重链接数降序显示。</td><td>筛选浮层改为页面级定位，修复数据较少时被表头或容器裁切的问题；修复发布后切换指标触发 Chart.js 配置递归、导致“价格分布变化”和“价格带×品牌分布”空白的回归问题；清除旧白色描边标签冲突，修复指标切换后数值标签丢失，并修复顶部横幅裁切导出菜单的问题。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v28</strong></td><td>2026-08-13</td><td>所有标准筛选器增加关键词搜索；明细列表统一补充品牌、小类、风格、面料与关键词筛选；排名链接销量分布恢复点击查看单个链接明细。</td><td>修复横向拖拽拦截图表点击；优化 CR 指标名称和口径说明；修复品牌市场份额引线标签裁切；价格类堆叠图移除白色描边，改用深色可读标签。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v27</strong></td><td>2026-08-13</td><td>重点品牌变化表增加当月销量、销售额、当前链接数排名及筛选；排名链接销量分布保留全量链接并支持横向滚动查看。</td><td>价格分布变化、价格带×品牌分布改为独立容错渲染，避免标签插件导致空白；品牌市场份额补充品牌、数值、单项占比的避让引线标签。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v26</strong></td><td>2026-08-13</td><td>总览五个子板块均可独立选择快照月份；属性指标对比拆分为风格、面料两张图，并支持平均销量、平均排名、平均价格、平均销售额切换。</td><td>所有品牌筛选器按当前范围内去重链接数降序；品牌市场规模完整展示可用品牌；小类与品牌市场规模图使用统一可控高度，样本较多时自动缩细柱体；侧边一级目录点击后回到模块顶部；品牌市场份额增加引线标签；修复价格类堆叠图数值标签可读性，并为标签渲染异常增加故障隔离，避免价格分布变化图空白。</td><td><span class="tag tag-blue">待验收</span></td></tr>
@@ -3795,10 +3796,63 @@ for(const plugin of [v25ValueLabelPlugin,v25SimpleValueLabelPlugin,v26ReadableSt
 const v29BaseSimpleLabelDraw=v25SimpleValueLabelPlugin.afterDatasetsDraw;v25SimpleValueLabelPlugin.afterDatasetsDraw=function(chart,args,options){if(!v29PriceChartIds.has(chart.canvas?.id))return v29BaseSimpleLabelDraw.call(this,chart,args,options);if(!options||options.enabled===false)return;const ctx=chart.ctx,metric=options.v29Metric||'links';ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='700 9px -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif';chart.data.datasets.forEach((dataset,datasetIndex)=>{const meta=chart.getDatasetMeta(datasetIndex);if(!meta||meta.hidden)return;(meta.data||[]).forEach((element,index)=>{const value=Number(dataset.data?.[index]||0),point=element.tooltipPosition?.(),props=element.getProps?.(['base','y'],true),space=Math.abs((props?.base??0)-(props?.y??0));if(!value||!point||space<12)return;const text=v11FormatMetric(value,metric),width=ctx.measureText(text).width+6;ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillRect(point.x-width/2,point.y-6,width,12);ctx.fillStyle='#102a43';ctx.fillText(text,point.x,point.y)})});ctx.restore()};
 v29AttachStackText=function(chart,metric){if(chart){chart.$v11Metric=metric;chart.update('none')}};
 v27SafeStackedOptions=function(metric,xTitle){const meta=v27MetricConfig(metric);return{responsive:true,maintainAspectRatio:false,plugins:{v25SimpleValueLabels:{enabled:true,v29Metric:metric},v26ReadableStackedLabels:{enabled:false},v27SafeStackedLabels:{enabled:false},v29StackText:{enabled:false},datalabels:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${v11FormatMetric(ctx.raw,metric)}`}}},scales:{x:{stacked:true,title:{display:true,text:xTitle},grid:{display:false},ticks:{maxRotation:35,font:{size:9}}},y:{stacked:true,beginAtZero:true,title:{display:true,text:meta.axis},ticks:{callback:value=>v11MetricTick(value,metric)}}}}};
+// Keep the export menu outside the decorative header so its options are never clipped.
+function v29CloseExportMenu(){const menu=document.getElementById('exportMenu');if(!menu)return;menu.classList.remove('show');if(menu.__v29Home&&menu.parentElement!==menu.__v29Home)menu.__v29Home.appendChild(menu);Object.assign(menu.style,{position:'',left:'',top:'',right:'',zIndex:'',visibility:''});if(menu.__v29Close){document.removeEventListener('click',menu.__v29Close);menu.__v29Close=null}}
+toggleExportMenu=function(){const menu=document.getElementById('exportMenu');if(!menu)return;if(menu.classList.contains('show')){v29CloseExportMenu();return}const home=menu.parentElement,trigger=home?.querySelector('.btn-import');if(!home||!trigger)return;menu.__v29Home=home;document.body.appendChild(menu);Object.assign(menu.style,{position:'fixed',right:'auto',zIndex:'2147483000',visibility:'hidden'});menu.classList.add('show');const rect=trigger.getBoundingClientRect(),panel=menu.getBoundingClientRect();menu.style.left=Math.max(8,Math.min(rect.right-panel.width,window.innerWidth-panel.width-8))+'px';menu.style.top=Math.min(rect.bottom+8,window.innerHeight-panel.height-8)+'px';menu.style.visibility='visible';menu.__v29Close=event=>{if(!menu.contains(event.target)&&event.target!==trigger)v29CloseExportMenu()};setTimeout(()=>document.addEventListener('click',menu.__v29Close),0)};
+const v29BaseExportExcel=exportExcel;exportExcel=function(){v29BaseExportExcel();v29CloseExportMenu()};const v29BaseExportPDF=exportPDF;exportPDF=function(){v29BaseExportPDF();v29CloseExportMenu()};const v29BaseExportChartImage=exportChartImage;exportChartImage=function(){v29BaseExportChartImage();v29CloseExportMenu()};
 // Call the last stable base renderers, then replace only the two affected charts with the safe configs above.
 updateCompareCharts=function(){try{v26BaseUpdateCompareCharts()}catch(error){console.warn('V29 compare base fallback:',error)}try{v27RenderPriceChangeSafe()}catch(error){console.error('V29 price distribution failed:',error)}};
 updateCompCharts=function(){try{v26BaseUpdateCompCharts()}catch(error){console.warn('V29 competition base fallback:',error)}try{v27RenderCompPriceBrandSafe();v27RenderBrandShareSafe()}catch(error){console.error('V29 competition distribution failed:',error)}v28PolishCR();v28InstallSearchableSelects();v28SyncSearchableSelects()};
 const v29BaseSideGo=v24SideGo;v24SideGo=function(tab){v29BaseSideGo(tab);setTimeout(()=>{if(tab==='compare')updateCompareCharts();if(tab==='competition')updateCompCharts()},90)};
+
+// Rank-link chart labels are brand names, so drill-down must use the clicked row instead of parsing the x-axis label as a rank.
+const v29BaseRankLinkDistribution=v26RenderRankLinkDistribution;
+v26RenderRankLinkDistribution=function(){
+  v29BaseRankLinkDistribution();
+  const chart=charts.chartConcentration;
+  if(!chart)return;
+  const month=v26OverviewMonth('product');
+  const rows=smartUnique(smartFilteredRows({...smartState,months:[month]},month));
+  const topN=parseInt(document.getElementById('fTopN')?.value||'100');
+  chart.$v29RankLinkItems=rows.filter(row=>safeNum(v8Field(row,'rank'))>0)
+    .sort((a,b)=>safeNum(v8Field(a,'rank'))-safeNum(v8Field(b,'rank'))||String(getProductKey(a)).localeCompare(String(getProductKey(b))))
+    .slice(0,topN);
+};
+function v29OpenRankLinkDetail(index){
+  const chart=charts.chartConcentration;
+  const item=chart?.$v29RankLinkItems?.[index];
+  if(!item)return;
+  const month=v26OverviewMonth('product');
+  const rank=safeNum(v8Field(item,'rank'));
+  showProductList(`${getBrand(item)||'未识别品牌'} 的链接`,`排名 ${rank} · ${monthKeyToLabel(month)} · ASIN ${getProductKey(item)||'-'}`,[item]);
+}
+registerChartClick('chartConcentration',v29OpenRankLinkDetail);
+// The delayed global click registration runs after initial rendering. Reapply this chart's row-aware handler there too,
+// otherwise it restores the legacy label-to-rank parser after 100 ms and after subsequent re-renders.
+const v29BaseRegisterAllChartClickHandlers=registerAllChartClickHandlers;
+registerAllChartClickHandlers=function(){
+  v29BaseRegisterAllChartClickHandlers();
+  registerChartClick('chartConcentration',v29OpenRankLinkDetail);
+  const chart=charts.chartConcentration;
+  if(chart){
+    chart.options.onClick=(event,elements)=>{
+      if(elements?.length)v29OpenRankLinkDetail(elements[0].index);
+    };
+    chart.update('none');
+  }
+};
+// Several historical render layers rebuild this canvas. Guard the chart factory itself so none of them can reinstate
+// the legacy parser that converts the brand label to rank 0.
+const v29BaseMakeChart=makeChart;
+makeChart=function(id,config){
+  const chart=v29BaseMakeChart(id,config);
+  if(id==='chartConcentration'&&chart){
+    chart.options.onClick=(event,elements)=>{
+      if(elements?.length)v29OpenRankLinkDetail(elements[0].index);
+    };
+  }
+  return chart;
+};
 
 // ========== INIT ==========
 (function(){
