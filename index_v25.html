@@ -357,6 +357,12 @@ tr:hover td{background:rgba(102,126,234,.02)}
   .side-chart-subnav{display:flex;flex-direction:column;gap:2px;margin:1px 0 8px 27px;padding:7px 0 3px 13px;border-left:1px solid #dce6f5}.side-chart-subnav:empty{display:none}.side-chart-subnav-title{padding:0 7px 4px;font-size:9px;font-weight:800;letter-spacing:.12em;color:#94a3b8}.side-chart-link{position:relative;display:block;width:100%;border:0;border-radius:7px;background:transparent;padding:5px 8px;text-align:left;color:#63738d;font:600 10px/1.35 inherit;cursor:pointer}.side-chart-link::before{content:'';position:absolute;left:-18px;top:50%;width:4px;height:4px;border-radius:50%;background:#b6c5d9;transform:translateY(-50%)}.side-chart-link:hover{background:#eaf2ff;color:#2563eb}.side-chart-link:hover::before{background:#2563eb}
   /* v25 header accent: a single high-contrast band makes the dashboard identity unmistakable. */
   .header{position:relative;overflow:hidden;background:linear-gradient(112deg,#173f9b 0%,#2563eb 54%,#0f9f9a 116%)!important;color:#fff!important;border-bottom:0!important;box-shadow:0 7px 22px rgba(30,64,175,.2)!important}.header::before{content:'';position:absolute;right:15%;top:-78px;width:210px;height:210px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 68%);pointer-events:none}.header::after{content:'';position:absolute;left:36%;bottom:-80px;width:330px;height:160px;border-radius:50%;background:rgba(14,165,233,.12);filter:blur(10px);pointer-events:none}.header-top{position:relative;z-index:1}.header h1{color:#fff!important;text-shadow:0 1px 1px rgba(15,23,42,.18)}.header p{color:#dbeafe!important;opacity:1!important}.header .btn-import,.header .ai-toggle-btn,.header .export-btn,.header .btn-export{border-color:rgba(255,255,255,.48)!important;background:rgba(255,255,255,.14)!important;color:#fff!important;box-shadow:none!important}.header .btn-import:hover,.header .ai-toggle-btn:hover,.header .export-btn:hover,.header .btn-export:hover{border-color:#fff!important;background:rgba(255,255,255,.25)!important;color:#fff!important}.header .ai-toggle-btn.active{background:#fff!important;color:#1d4ed8!important;border-color:#fff!important}
+  /* v25 layout repair: desktop AI uses real layout space; the directory can collapse without hiding navigation. */
+  :root{--v25-ai-panel-width:440px}.main-wrapper{transition:padding-right .28s cubic-bezier(.4,0,.2,1)}body.ai-open .main-wrapper{padding-right:var(--v25-ai-panel-width)}body.ai-open .content-area{width:auto!important;flex:1!important}.ai-panel.open{width:var(--v25-ai-panel-width)}
+  .side-nav{position:relative;transition:width .24s cubic-bezier(.4,0,.2,1),flex-basis .24s cubic-bezier(.4,0,.2,1),padding .24s cubic-bezier(.4,0,.2,1)}.side-nav-collapse{position:absolute;top:12px;right:10px;z-index:2;width:25px;height:25px;border:1px solid #d8e4f4;border-radius:7px;background:#fff;color:#49627f;font:700 17px/21px inherit;cursor:pointer;box-shadow:0 2px 6px rgba(15,23,42,.06);transition:.18s}.side-nav-collapse:hover{border-color:#7aa3eb;background:#eef5ff;color:#2563eb}.side-nav-title{padding-right:34px}
+  body.sidebar-collapsed .side-nav{width:62px;flex-basis:62px;padding:16px 8px 14px}body.sidebar-collapsed .side-nav-title,body.sidebar-collapsed .side-subnav,body.sidebar-collapsed .side-chart-subnav,body.sidebar-collapsed .side-nav-divider,body.sidebar-collapsed .side-nav-foot{display:none!important}body.sidebar-collapsed .side-nav-item{justify-content:center;padding:0;min-height:42px}body.sidebar-collapsed .side-nav-item>span:not(.side-icon){display:none}body.sidebar-collapsed .side-nav-collapse{right:18px}
+  @media(max-width:1180px){body.ai-open .main-wrapper{padding-right:0}.ai-panel.open{width:min(var(--v25-ai-panel-width),calc(100vw - 14px))}}
+  @media(max-width:900px){.side-nav-collapse{display:none}}
   </style>
 </head>
 <body>
@@ -438,6 +444,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
 <!-- Main Layout -->
 <div class="main-wrapper">
 <aside class="side-nav" id="sideNav" aria-label="看板目录">
+  <button class="side-nav-collapse" id="sideNavToggle" type="button" aria-label="收起目录" aria-expanded="true" title="收起目录" onclick="v25ToggleSideNav()">‹</button>
   <div class="side-nav-title">分析目录</div>
   <button class="side-nav-item active" data-side-tab="overview" onclick="v24SideGo('overview')"><span class="side-icon">▣</span><span>BSR总览</span><span class="side-chevron">⌃</span></button>
   <div class="side-subnav" id="sideOverviewSubnav">
@@ -900,7 +907,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
   <div class="table-card" style="margin-top:16px">
     <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
-      <tr><td><strong>v25</strong></td><td>2026-08-13</td><td>图表默认显示数值；侧边目录增加“当前页图表”子目录，可直达对应图表。顶部新增蓝—青品牌色条。</td><td>商品集中度、品牌集中度、价格分布、上架时间、评分分布的占比折线统一改为单项占比，不再累计；柱图、堆叠柱、折线及组合图按系列分别布局数值；统一页面底色为极浅冷灰蓝。</td><td><span class="tag tag-green">正式发布</span></td></tr>
+      <tr><td><strong>v25</strong></td><td>2026-08-13</td><td>图表默认显示数值；侧边目录增加“当前页图表”子目录，可直达对应图表。顶部新增蓝—青品牌色条。</td><td>商品集中度、品牌集中度、价格分布、上架时间、评分分布的占比折线统一改为单项占比，不再累计；AI 打开时大屏页面自动压缩并重算图表；左侧目录支持收回为图标栏；统一页面底色为极浅冷灰蓝。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v24</strong></td><td>2026-08-13</td><td>UI 重构候选：侧边目录、紧凑彩色图表卡、多月份销量趋势、女装衬衫 AI 分析预设与一键诊断。</td><td>AI 助手改为自适应右侧浮层，修复窄屏裁切；分析框架明确独立月度快照、BSR 方向与精确 92 异常值规则。</td><td><span class="tag tag-blue">本地候选</span></td></tr>
       <tr><td><strong>v23</strong></td><td>2026-08-12</td><td>竞品格局中的“重点品牌多月份趋势”更名为“品牌趋势”，增加链接数量、当月销量、销售额三种指标切换。</td><td>图例、纵轴、悬停数值与重点品牌排序均随当前指标同步更新；销售额按当月销量 × 价格计算。</td><td><span class="tag tag-blue">待验收</span></td></tr>
       <tr><td><strong>v22</strong></td><td>2026-08-12</td><td>重点变化产品及各图表点击弹出的产品明细新增品牌、小类、风格、面料、排名区间与关键词筛选。</td><td>重点变化产品支持按销量变化、BSR变化、品牌和小类过滤；筛选后保留原始总数，便于确认筛选范围。</td><td><span class="tag tag-green">历史版本</span></td></tr>
@@ -1363,6 +1370,12 @@ v24SyncSideNav=function(tab){v25BaseSyncSideNav(tab);v25RenderSideChartSubnav(ta
 const v25BaseOverviewSub=v24SideOverviewSub;
 v24SideOverviewSub=function(tab){v25BaseOverviewSub(tab);setTimeout(()=>v25RenderSideChartSubnav('overview'),0)};
 v25RenderSideChartSubnav('overview');
+function v25ToggleSideNav(){
+  const collapsed=document.body.classList.toggle('sidebar-collapsed');
+  const button=document.getElementById('sideNavToggle');
+  if(button){button.textContent=collapsed?'›':'‹';button.setAttribute('aria-expanded',String(!collapsed));button.setAttribute('aria-label',collapsed?'展开目录':'收起目录');button.title=collapsed?'展开目录':'收起目录'}
+  setTimeout(resizeAllCharts,280);
+}
 
 // ========== IMPORT ==========
 function openImportModal(){document.getElementById('importModal').classList.add('active');document.getElementById('columnMappingArea').style.display='none';document.getElementById('sheetSelectArea').style.display='none';document.getElementById('confirmImport').disabled=true;document.getElementById('fileInput').value='';pendingWorkbook=null;pendingSheetName='';loadRecentFiles()}
@@ -2617,7 +2630,7 @@ let isGenerating=false;
 // API 配置仅保留在当前页面会话内，刷新或关闭页面后自动丢弃。
 let v24AiSessionSettings={};
 
-function toggleAIPanel(){const panel=document.getElementById('aiPanel');const btn=document.getElementById('aiToggleBtn');panel.classList.toggle('open');btn.classList.toggle('active');document.body.classList.toggle('ai-open');setTimeout(resizeAllCharts,350)}
+function toggleAIPanel(){const panel=document.getElementById('aiPanel');const btn=document.getElementById('aiToggleBtn');const open=panel.classList.toggle('open');btn.classList.toggle('active',open);document.body.classList.toggle('ai-open',open);setTimeout(resizeAllCharts,350)}
 function toggleSettings(){const settings=document.getElementById('aiSettings');settings.classList.toggle('open');const saved=v24AiSessionSettings;if(saved.apiUrl)document.getElementById('aiApiUrl').value=saved.apiUrl;if(saved.apiKey)document.getElementById('aiApiKey').value=saved.apiKey;if(saved.model)document.getElementById('aiModel').value=saved.model}
 function saveAISettings(){const apiUrl=document.getElementById('aiApiUrl').value.trim();const apiKey=document.getElementById('aiApiKey').value.trim();const model=document.getElementById('aiModel').value.trim();if(!apiUrl||!apiKey||!model){showSettingsStatus('请填写所有字段','error');return}v24AiSessionSettings={apiUrl,apiKey,model};showSettingsStatus('✓ 仅本次会话保存，关闭页面后自动清除','success')}
 function showSettingsStatus(msg,type){const el=document.getElementById('aiSettingsStatus');el.textContent=msg;el.className='ai-settings-status '+type;setTimeout(()=>{el.className='ai-settings-status'},3000)}
