@@ -3667,13 +3667,13 @@ function v27SafeStackedOptions(metric,xTitle){const meta=v27MetricConfig(metric)
 function v27RenderPriceChangeSafe(){
   const metric=v11MetricState.chartPriceChange||'links',months=(typeof v19Months==='function'?v19Months('compare'):ALL_MONTHS).filter(month=>ALL_MONTHS.includes(month)),rows=typeof v11CompareRows==='function'?v11CompareRows():ALL_DATA,zones=['$0-10','$10-20','$20-30','$30-50','$50+'];
   const data=months.map(month=>{const snapshot=smartUnique(rows.filter(row=>row._dataMonth===month));return zones.map((_,index)=>snapshot.reduce((sum,row)=>{const price=safeNum(v8Field(row,'price'));return sum+(v27PriceZone(index,price)?v11MetricValue(row,month,metric):0)},0))});
-  const chart=makeChart('chartPriceChange',{type:'bar',data:{labels:months.map(monthKeyToLabel),datasets:zones.map((label,index)=>({label,data:data.map(row=>row[index]),backgroundColor:getColor(index),borderRadius:3,borderSkipped:false}))},options:v27SafeStackedOptions(metric,'榜单快照月份')});if(chart)chart.$v11Metric=metric;
+  const chart=makeChart('chartPriceChange',{type:'bar',data:{labels:months.map(monthKeyToLabel),datasets:zones.map((label,index)=>({label,data:data.map(row=>row[index]),backgroundColor:getColor(index),borderRadius:3,borderSkipped:false}))},options:v27SafeStackedOptions(metric,'榜单快照月份')});if(chart){chart.$v11Metric=metric;chart.update('none')}
 }
 function v27RenderCompPriceBrandSafe(){
   const {month,rows}=v11CompetitionRows(),metric=v11MetricState.chartCompPriceBrand||'links',zones=['$0-10','$10-20','$20-30','$30-50','$50+'],groups=new Map();
   rows.forEach(row=>{const label=getBrand(row);if(!label||label==='暂无'||!/^[a-z]/i.test(label))return;const key=typeof v20BrandKey==='function'?v20BrandKey(label):label.toLowerCase(),item=groups.get(key)||{label,rows:[]};item.rows.push(row);groups.set(key,item)});
   const brands=[...groups.values()].map(item=>({...item,value:item.rows.reduce((sum,row)=>sum+v11MetricValue(row,month,metric),0)})).sort((a,b)=>b.value-a.value).slice(0,8);
-  const chart=makeChart('chartCompPriceBrand',{type:'bar',data:{labels:brands.map(item=>item.label),datasets:zones.map((label,index)=>({label,data:brands.map(item=>item.rows.reduce((sum,row)=>{const price=safeNum(v8Field(row,'price'));return sum+(v27PriceZone(index,price)?v11MetricValue(row,month,metric):0)},0)),backgroundColor:getColor(index),borderRadius:3,borderSkipped:false}))},options:v27SafeStackedOptions(metric,'品牌')});if(chart)chart.$v11Metric=metric;
+  const chart=makeChart('chartCompPriceBrand',{type:'bar',data:{labels:brands.map(item=>item.label),datasets:zones.map((label,index)=>({label,data:brands.map(item=>item.rows.reduce((sum,row)=>{const price=safeNum(v8Field(row,'price'));return sum+(v27PriceZone(index,price)?v11MetricValue(row,month,metric):0)},0)),backgroundColor:getColor(index),borderRadius:3,borderSkipped:false}))},options:v27SafeStackedOptions(metric,'品牌')});if(chart){chart.$v11Metric=metric;chart.update('none')}
 }
 
 const v27DoughnutLeaderLabels={id:'v27DoughnutLeaderLabels',afterDatasetsDraw(chart,args,options){
