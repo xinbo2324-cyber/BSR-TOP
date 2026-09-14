@@ -1,11 +1,12 @@
 const endpoint = 'http://127.0.0.1:9335/json/list';
+const dashboard = process.env.DASHBOARD_FILE || 'index_v35.html';
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 let page;
 for (let i = 0; i < 60; i++) {
   try {
     const pages = await fetch(endpoint).then(response => response.json());
-    page = pages.find(item => item.type === 'page' && item.url.includes('index_v35.html'));
+    page = pages.find(item => item.type === 'page' && item.url.includes(dashboard));
     if (page) break;
   } catch {}
   await wait(500);
@@ -56,6 +57,9 @@ const result = await evaluate(`(() => ({
   detailRows: document.querySelectorAll('#detailBody tr').length,
   augustRows: ALL_DATA.filter(row => row._dataMonth === '202608').length,
   augustParents: smartUnique(ALL_DATA.filter(row => row._dataMonth === '202608')).length,
+  primaryNativeIndex: [...document.getElementById('fSubCategory').options].findIndex(option => option.value === "Women's Button-Down Shirts"),
+  primaryV4Index: [...document.querySelectorAll('#v4MenuOverviewSubcats input[data-v4-value]')].findIndex(input => input.dataset.v4Value === "Women's Button-Down Shirts"),
+  primaryV4Color: getComputedStyle([...document.querySelectorAll('#v4MenuOverviewSubcats input[data-v4-value]')].find(input => input.dataset.v4Value === "Women's Button-Down Shirts")?.nextElementSibling).color,
   chartCount: Object.keys(charts).length
 }))()`);
 
@@ -66,6 +70,7 @@ if (result.comparePair.cur !== '202608' || result.comparePair.prev !== '202607')
 if (result.changePair.cur !== '202608' || result.changePair.prev !== '202607') throw new Error('change pair stale');
 if (!result.attrMonths.includes('202608')) throw new Error('attribute months missing August');
 if (result.augustRows !== 3012 || result.augustParents !== 2916) throw new Error('August row counts mismatch');
+if (result.primaryNativeIndex !== 1 || result.primaryV4Index !== 0 || result.primaryV4Color !== 'rgb(220, 38, 38)') throw new Error('primary subcategory pin failed');
 if (!result.top100Rows || !result.detailRows || result.chartCount < 10) throw new Error('dashboard content missing');
 console.log(JSON.stringify(result, null, 2));
 socket.close();
