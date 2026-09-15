@@ -1,5 +1,8 @@
 const endpoint = 'http://127.0.0.1:9335/json/list';
 const dashboard = process.env.DASHBOARD_FILE || 'index_v35.html';
+const expectedRecords = Number(process.env.EXPECT_RECORDS || 16860);
+const expectedAugustRows = Number(process.env.EXPECT_AUGUST_ROWS || 3012);
+const expectedAugustParents = Number(process.env.EXPECT_AUGUST_PARENTS || 2916);
 
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 let page;
@@ -40,7 +43,7 @@ const evaluate = async expression => {
 
 let ready = false;
 for (let i = 0; i < 80; i++) {
-  ready = await evaluate("document.readyState==='complete' && document.getElementById('headerDesc')?.textContent.includes('16860')");
+  ready = await evaluate(`document.readyState==='complete' && document.getElementById('headerDesc')?.textContent.includes('${expectedRecords}')`);
   if (ready) break;
   await wait(500);
 }
@@ -69,7 +72,7 @@ for (const key of ['fCompareMonth','fChgCompareMonth']) if (result.selectors[key
 if (result.comparePair.cur !== '202608' || result.comparePair.prev !== '202607') throw new Error('compare pair stale');
 if (result.changePair.cur !== '202608' || result.changePair.prev !== '202607') throw new Error('change pair stale');
 if (!result.attrMonths.includes('202608')) throw new Error('attribute months missing August');
-if (result.augustRows !== 3012 || result.augustParents !== 2916) throw new Error('August row counts mismatch');
+if (result.augustRows !== expectedAugustRows || result.augustParents !== expectedAugustParents) throw new Error('August row counts mismatch');
 if (result.primaryNativeIndex !== 1 || result.primaryV4Index !== 0 || result.primaryV4Color !== 'rgb(220, 38, 38)') throw new Error('primary subcategory pin failed');
 if (!result.top100Rows || !result.detailRows || result.chartCount < 10) throw new Error('dashboard content missing');
 console.log(JSON.stringify(result, null, 2));
