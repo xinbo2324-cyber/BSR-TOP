@@ -462,7 +462,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   <section class="smart-shell" id="smartOverviewShell">
     <div class="smart-header">
       <div><div class="smart-eyebrow">MARKET OVERVIEW</div><h2>市场总览</h2><p id="smartOverviewSummary">默认展示最新榜单快照；通过筛选、趋势和重点产品逐层下钻。</p></div>
-      <div class="smart-actions"><button class="smart-btn" onclick="clearSmartFilters()">清除筛选</button><button class="smart-btn primary" onclick="focusSmartPriority()">查看重点变化</button></div>
+      <div class="smart-actions"><label class="v38-global-category">全局类目<select id="globalSubcatFilter" onchange="v38ApplyGlobalSubcategory(this.value)"><option value="">全部类目</option></select></label><button class="smart-btn" onclick="clearSmartFilters()">清除筛选</button><button class="smart-btn primary" onclick="focusSmartPriority()">查看重点变化</button></div>
     </div>
     <div class="v4-filterbar">
       <div class="v4-filter-intro"><span class="v4-filter-kicker">FILTERS</span><strong>选择分析范围</strong><span>可同时勾选多个条件，点击空白处关闭菜单</span></div>
@@ -890,7 +890,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
   <div class="table-card" style="margin-top:16px">
     <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
-      <tr><td><strong>v38</strong></td><td>2026-09-16</td><td>更新《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录，空白说明行不导入；总览横向柱图移除重复的末端引线与数值。</td><td><span class="tag tag-green">正式发布</span></td></tr>
+      <tr><td><strong>v38</strong></td><td>2026-09-16</td><td>更新《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录；总览横向柱图移除重复引线；新增全局类目筛选，衬衫类目置顶标红。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v37</strong></td><td>2026-09-15</td><td>数据源替换为《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表。</td><td>仅内置该子表的 983 条记录，保留 2026-04 至 2026-08 独立快照、父ASIN去重与小类主类目顶置。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v36</strong></td><td>2026-09-14</td><td>小类筛选器高亮主类目 `Women's Button-Down Shirts`。</td><td>在普通下拉、多选菜单、搜索结果和表格筛选中均固定顶置并显示为红色。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v35</strong></td><td>2026-09-14</td><td>内置品牌调研表 2026-04 至 2026-08 的 16,860 条原始记录，打开原网址即可查看 8 月数据。</td><td>新数据载入后统一刷新总览、月度对比、排名变化、属性与明细的月份状态；图表继续按“月份＋父ASIN”去重。</td><td><span class="tag tag-green">正式发布</span></td></tr>
@@ -1571,7 +1571,7 @@ function rebuildFilterOptions(){
   if(top100Month)top100Month.value=monthKeyToLabel(ALL_MONTHS[ALL_MONTHS.length-1]||'');
   fill('fHeatmapStyle',[...new Set(ALL_DATA.map(d=>d['风格']).filter(v=>v&&v!=='暂无'&&v!=='无'))].sort());
   fill('fHeatmapFabric',[...new Set(ALL_DATA.map(d=>d['面料']).filter(v=>v&&v!=='暂无'&&v!=='无'))].sort());
-  populateSmartFilters();populateSmartCompetitionFilters();
+  populateSmartFilters();populateSmartCompetitionFilters();v38PopulateGlobalSubcategory();
   fill('fDetailSubCat',[...new Set(ALL_DATA.map(d=>d['小类']).filter(v=>v&&v!=='暂无'))].sort());
   fill('fDetailBrand',[...new Set(ALL_DATA.map(d=>d['品牌名']||d['品牌']).filter(v=>v&&v!=='暂无'&&/[a-zA-Z]/.test(v)))].sort());
 }
@@ -1579,6 +1579,18 @@ function rebuildFilterOptions(){
 function monthStrToKey(s){if(!s)return'';return s.replace('-','')}
 function monthKeyToLabel(m){return m.slice(0,4)+'-'+m.slice(4)}
 function getBrand(d){return d['品牌名']||d['品牌']||''}
+
+function v38PopulateGlobalSubcategory(){
+  const select=document.getElementById('globalSubcatFilter');if(!select)return;
+  const current=select.value,values=smartOptionValues('subcats');
+  select.innerHTML='<option value="">全部类目</option>'+values.map(value=>`<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+  select.value=values.includes(current)?current:'';
+}
+function v38ApplyGlobalSubcategory(value){
+  ['fSubCategory','fCompareSubCat','fChgSubCat','fCompSubCat','fAttrSubCat','fDetailSubCat'].forEach(id=>{const select=document.getElementById(id);if(select)select.value=[...select.options].some(option=>option.value===value)?value:''});
+  smartState.subcats=value?[value]:[];compSmartState.subcats=value?[value]:[];v6SyncSmartSelects('overview');v6SyncSmartSelects('competition');applyFilters();
+}
+const v38GlobalCategoryStyle=document.createElement('style');v38GlobalCategoryStyle.textContent='.v38-global-category{display:inline-flex;align-items:center;gap:6px;color:#5d6980;font-size:11px;font-weight:600;white-space:nowrap}.v38-global-category select{height:31px;max-width:230px;border:1px solid #dbe2ef;border-radius:8px;background:#fff;color:#334155;padding:0 24px 0 8px;font:600 11px inherit;cursor:pointer}';document.head.appendChild(v38GlobalCategoryStyle);
 
 function getFilteredData(){
   let data=ALL_DATA;
@@ -1780,7 +1792,7 @@ function renderSmartOverview(){
   const body=document.getElementById('smartPriorityBody');const rows=changes.items.slice().sort((a,b)=>(Math.abs(b.salesDelta)+Math.abs(b.rankDelta||0)*10)-(Math.abs(a.salesDelta)+Math.abs(a.rankDelta||0)*10)).slice(0,30);body.innerHTML=rows.length?rows.map(x=>{const asin=x.key;const link=`https://www.amazon.com/dp/${encodeURIComponent(asin)}`;const salesStatus=x.c&&!x.p?'新入榜':!x.c&&x.p?'跌出榜':x.salesDelta>0?'销量增长':x.salesDelta<0?'销量下降':'无变化';const rankStatus=x.c&&!x.p?'新入榜':!x.c&&x.p?'跌出榜':x.rankDelta>0?'BSR上升':x.rankDelta<0?'BSR下降':'无变化';return `<tr><td class="${x.salesDelta>=0?'smart-positive':'smart-negative'}">${escapeHtml(salesStatus)}</td><td class="${x.rankDelta>0?'smart-positive':x.rankDelta<0?'smart-negative':'smart-muted'}">${escapeHtml(rankStatus)}</td><td><a href="${link}" target="_blank" rel="noopener">${escapeHtml(asin)}</a></td><td>${escapeHtml(x.brand)}</td><td>${escapeHtml(x.subcat)}</td><td class="${x.salesDelta>=0?'smart-positive':'smart-negative'}">${x.c?'＋':''}${smartFmt(x.salesDelta)}</td><td class="${x.rankDelta>0?'smart-positive':x.rankDelta<0?'smart-negative':'smart-muted'}">${x.rankDelta===null?'-':(x.rankDelta>0?'＋':'')+smartFmt(x.rankDelta)}</td><td>${x.rank??'-'}</td></tr>`}).join(''):'<tr><td colspan="8" class="smart-muted">当前没有可比较的相邻月份。</td></tr>';
 }
 function applySmartFilters(){smartState.months=smartValues('smartMonthMulti');smartState.subcats=smartValues('smartSubcatMulti');smartState.brands=smartValues('smartBrandMulti');syncLegacyOverviewFilters();applyFilters()}
-function clearSmartFilters(){smartState={months:[],subcats:[],brands:[]};v6SyncSmartSelects('overview');syncLegacyOverviewFilters();applyFilters()}
+function clearSmartFilters(){smartState={months:[],subcats:[],brands:[]};v38ApplyGlobalSubcategory('')}
 function focusSmartPriority(){document.getElementById('smartPriorityCard')?.scrollIntoView({behavior:'smooth',block:'start'})}
 function renderSmartCompetition(){
   if(!ALL_DATA.length)return;v4PolishLabels();populateSmartCompetitionFilters();const current=smartCurrentMonth(compSmartState),snapshot=smartUnique(smartFilteredRows(compSmartState,current));
