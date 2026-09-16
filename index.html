@@ -890,7 +890,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
   <div class="table-card" style="margin-top:16px">
     <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
-      <tr><td><strong>v38</strong></td><td>2026-09-15</td><td>更新《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录，空白说明行不导入；保留现有功能与筛选规则。</td><td><span class="tag tag-green">正式发布</span></td></tr>
+      <tr><td><strong>v38</strong></td><td>2026-09-16</td><td>更新《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录，空白说明行不导入；总览横向柱图移除重复的末端引线与数值。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v37</strong></td><td>2026-09-15</td><td>数据源替换为《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表。</td><td>仅内置该子表的 983 条记录，保留 2026-04 至 2026-08 独立快照、父ASIN去重与小类主类目顶置。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v36</strong></td><td>2026-09-14</td><td>小类筛选器高亮主类目 `Women's Button-Down Shirts`。</td><td>在普通下拉、多选菜单、搜索结果和表格筛选中均固定顶置并显示为红色。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v35</strong></td><td>2026-09-14</td><td>内置品牌调研表 2026-04 至 2026-08 的 16,860 条原始记录，打开原网址即可查看 8 月数据。</td><td>新数据载入后统一刷新总览、月度对比、排名变化、属性与明细的月份状态；图表继续按“月份＋父ASIN”去重。</td><td><span class="tag tag-green">正式发布</span></td></tr>
@@ -2957,7 +2957,7 @@ function v10UpdateScaleChart(chartId,rows,metric){
     chartCompSmartScale:['#3985e8','#4d9ef0','#3bbeb0','#8a6de8','#f59e63','#ee7394']
   };
   const palette=palettes[chartId]||palettes.chartSmartScale;
-  makeChart(chartId,{type:'bar',data:{labels:rows.map(row=>row.label),datasets:[{label:meta.label,data:rows.map(row=>row.value),backgroundColor:rows.map((_,index)=>palette[index%palette.length]),borderRadius:7,borderSkipped:false,barPercentage:.72,categoryPercentage:.82}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:4,right:10,top:3,bottom:0}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${meta.label}: ${v10FormatMetric(ctx.raw,metric)}`}}},scales:{x:{beginAtZero:true,title:{display:true,text:meta.axis,color:'#71819b',font:{size:10,weight:'600'}},grid:{color:'rgba(148,163,184,.13)'},ticks:{color:'#7b8aa4',font:{size:10},callback:value=>metric==='revenue'?'$'+Number(value||0).toLocaleString():Number(value||0).toLocaleString()}},y:{grid:{display:false},ticks:{color:'#52627a',font:{size:10}}}}}});
+  makeChart(chartId,{type:'bar',data:{labels:rows.map(row=>row.label),datasets:[{label:meta.label,data:rows.map(row=>row.value),backgroundColor:rows.map((_,index)=>palette[index%palette.length]),borderRadius:7,borderSkipped:false,barPercentage:.72,categoryPercentage:.82}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{left:4,right:10,top:3,bottom:0}},plugins:{legend:{display:false},v25ValueLabels:{enabled:false},tooltip:{callbacks:{label:ctx=>`${meta.label}: ${v10FormatMetric(ctx.raw,metric)}`}}},scales:{x:{beginAtZero:true,title:{display:true,text:meta.axis,color:'#71819b',font:{size:10,weight:'600'}},grid:{color:'rgba(148,163,184,.13)'},ticks:{color:'#7b8aa4',font:{size:10},callback:value=>metric==='revenue'?'$'+Number(value||0).toLocaleString():Number(value||0).toLocaleString()}},y:{grid:{display:false},ticks:{color:'#52627a',font:{size:10}}}}}});
 }
 function v10RefreshMetricCharts(){
   v10InstallMetricControls();
