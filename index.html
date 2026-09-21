@@ -783,6 +783,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
     </div>
     <div id="attrMonthChips" class="smart-chips attr-month-chips"></div>
   </div>
+  <p id="v40StyleCoverageHint" class="attr-month-note" style="margin:0 0 10px"></p>
   <div class="charts-grid">
     <div class="chart-card"><h3>风格月度对比</h3><p style="font-size:11px;color:#999;margin:0 0 8px">按已勾选的榜单快照对比各风格的上榜表现</p><div class="chart-wrap"><canvas id="chartAttrStyle"></canvas></div></div>
     <div class="chart-card"><h3>面料月度对比</h3><p style="font-size:11px;color:#999;margin:0 0 8px">按已勾选的榜单快照对比各面料的上榜表现</p><div class="chart-wrap"><canvas id="chartAttrFabric"></canvas></div></div>
@@ -816,7 +817,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   <div class="table-card">
     <h3>BSR明细数据（<span id="detailCount">0</span>条）</h3>
     <div style="overflow-x:auto"><table><thead><tr>
-      <th>小类排名</th><th>排名变化</th><th>ASIN</th><th>品牌</th><th>小类</th><th>价格</th><th>评分</th><th>评论数</th><th>月销量</th><th>上架日期</th><th>在榜月数</th>
+      <th>小类排名</th><th>排名变化</th><th>ASIN</th><th>品牌</th><th>小类</th><th>价格</th><th>评分</th><th>评论数</th><th>父体月销</th><th>上架日期</th><th>在榜月数</th>
     </tr></thead><tbody id="detailBody"></tbody></table></div>
   </div>
 </div>
@@ -890,6 +891,8 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
   <div class="table-card" style="margin-top:16px">
     <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
+      <tr><td><strong>v40 修复</strong></td><td>2026-09-21</td><td>修复月份切换后各模块状态不一致及筛选器残留无效选项。</td><td>总览月份统一同步总览明细、TOP100、属性、竞争与对比模块；品牌和小类选项按当前月份收窄，失效选择自动清除。</td><td><span class="tag tag-green">正式发布</span></td></tr>
+      <tr><td><strong>v40 修复</strong></td><td>2026-09-20</td><td>统一父体统计、全局类目与明细销量口径。</td><td>同月父体按最佳小类排名稳定去重；趋势探索器继承全局类目；重置同步清空全局类目；子体明细只显示一次父体月销，并提示风格覆盖率。</td><td><span class="tag tag-blue">本地待发布</span></td></tr>
       <tr><td><strong>v40</strong></td><td>2026-09-20</td><td>更新桌面《月度品牌调研_汇总_归类版_卖家精灵补充_全量》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录；源表“大类”映射为看板品类，保留现有筛选与图表。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v39</strong></td><td>2026-09-16</td><td>更新《月度品牌调研_汇总_归类版_卖家精灵补充_全量》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录，保留当前筛选与图表功能。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v38</strong></td><td>2026-09-16</td><td>更新《月度品牌调研_汇总_归类版》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录；总览横向柱图移除重复引线；新增全局类目筛选，衬衫类目置顶标红。</td><td><span class="tag tag-green">正式发布</span></td></tr>
@@ -1589,6 +1592,7 @@ function v38PopulateGlobalSubcategory(){
   select.value=values.includes(current)?current:'';
 }
 function v38ApplyGlobalSubcategory(value){
+  const global=document.getElementById('globalSubcatFilter');if(global)global.value=value;
   ['fSubCategory','fCompareSubCat','fChgSubCat','fCompSubCat','fAttrSubCat','fDetailSubCat'].forEach(id=>{const select=document.getElementById(id);if(select)select.value=[...select.options].some(option=>option.value===value)?value:''});
   smartState.subcats=value?[value]:[];compSmartState.subcats=value?[value]:[];v6SyncSmartSelects('overview');v6SyncSmartSelects('competition');applyFilters();
 }
@@ -1620,12 +1624,12 @@ function refreshMonthsOnList(){ALL_DATA.forEach(item=>{item._monthsOnList=ALL_MO
 
 function runUpdate(name,fn){try{fn()}catch(e){console.error(name+' error:',e)}}
 function applyFilters(){runUpdate('overview stats',updateOverviewStats);runUpdate('overview charts',updateOverviewCharts);runUpdate('overview table',updateOverviewTable);runUpdate('compare charts',updateCompareCharts);runUpdate('change charts',updateChangeCharts);runUpdate('competition charts',updateCompCharts);runUpdate('attribute charts',updateAttrCharts);runUpdate('detail table',updateDetailTable);runUpdate('chart click handlers',registerAllChartClickHandlers);runUpdate('smart overview',renderSmartOverview);runUpdate('smart competition',renderSmartCompetition)}
-function resetOverviewFilters(){document.getElementById('fMonth').value='';document.getElementById('fSubCategory').value='';document.getElementById('fBrand').value='';applyFilters()}
-function resetCompareFilters(){['fCompareSubCat','fCompareBrand','fHeatmapStyle','fHeatmapFabric'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fBaseMonth'),compare=document.getElementById('fCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);applyFilters()}
-function resetChangeFilters(){['fChgSubCat','fChgBrand','fChgThreshold'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fChgBaseMonth'),compare=document.getElementById('fChgCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);applyFilters()}
-function resetCompFilters(){document.getElementById('fCompMonth').value='';document.getElementById('fCompSubCat').value='';applyFilters()}
-function resetAttrFilters(){['fAttrMonth','fAttrSubCat','fAttrBrand'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
-function resetDetailFilters(){['fDetailMonth','fDetailSubCat','fDetailBrand','fDetailRank','fDetailChange'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});applyFilters()}
+function resetOverviewFilters(){document.getElementById('fMonth').value='';document.getElementById('fSubCategory').value='';document.getElementById('fBrand').value='';v38ApplyGlobalSubcategory('')}
+function resetCompareFilters(){['fCompareSubCat','fCompareBrand','fHeatmapStyle','fHeatmapFabric'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fBaseMonth'),compare=document.getElementById('fCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);v38ApplyGlobalSubcategory('')}
+function resetChangeFilters(){['fChgSubCat','fChgBrand','fChgThreshold'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fChgBaseMonth'),compare=document.getElementById('fChgCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);v38ApplyGlobalSubcategory('')}
+function resetCompFilters(){document.getElementById('fCompMonth').value='';document.getElementById('fCompSubCat').value='';v38ApplyGlobalSubcategory('')}
+function resetAttrFilters(){['fAttrMonth','fAttrSubCat','fAttrBrand'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});v38ApplyGlobalSubcategory('')}
+function resetDetailFilters(){['fDetailMonth','fDetailSubCat','fDetailBrand','fDetailRank','fDetailChange'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});v38ApplyGlobalSubcategory('')}
 function applyCompareFilters(){applyFilters()}
 function applyChangeFilters(){applyFilters()}
 function applyCompFilters(){applyFilters()}
@@ -1643,7 +1647,8 @@ function smartValidSales(d,m){const raw=smartRawSales(d,m);if(raw===92||String(r
 function smartRank(d){const n=Number(d?.['小类排名']??d?.['大类排名']);return Number.isFinite(n)&&n>0?n:null}
 function smartFmt(n){return Number.isFinite(Number(n))?Number(n).toLocaleString('zh-CN',{maximumFractionDigits:0}):'-'}
 function smartPct(n){return Number.isFinite(Number(n))?(Number(n)*100).toFixed(1)+'%':'-'}
-function smartUnique(rows){const map=new Map();rows.forEach((d,i)=>{const k=(d._dataMonth||'')+'|'+(getProductKey(d)||('__row_'+i));if(!map.has(k))map.set(k,d)});return [...map.values()]}
+function v40PreferredRow(a,b){const ar=smartRank(a)||Infinity,br=smartRank(b)||Infinity;if(ar!==br)return ar<br?a:b;const aa=String(a?.['竞品ASIN']||''),ba=String(b?.['竞品ASIN']||''),cmp=aa.localeCompare(ba,'en',{sensitivity:'base'});return cmp?cmp<0?a:b:JSON.stringify(a).localeCompare(JSON.stringify(b))<=0?a:b}
+function smartUnique(rows){const map=new Map();rows.forEach((d,i)=>{const k=(d._dataMonth||'')+'|'+(getProductKey(d)||('__row_'+i));map.set(k,map.has(k)?v40PreferredRow(map.get(k),d):d)});return [...map.values()]}
 function smartFilteredRows(state,month){
   let rows=ALL_DATA;
   if(month)rows=rows.filter(d=>d._dataMonth===month);
@@ -1654,6 +1659,10 @@ function smartFilteredRows(state,month){
 function smartOptionValues(type){
   const values=type==='subcats'?ALL_DATA.map(d=>d['小类']):ALL_DATA.map(d=>getBrand(d));
   return [...new Set(values.filter(v=>v&&v!=='暂无'))].sort((a,b)=>String(a).localeCompare(String(b),'zh-CN'))
+}
+function v40ScopedOptionValues(type,scope){
+  const state=v4State(scope),months=state.months.length?state.months:ALL_MONTHS,available=new Set(smartUnique(ALL_DATA.filter(d=>months.includes(d._dataMonth))).map(d=>type==='subcats'?d['小类']:getBrand(d)).filter(v=>v&&v!=='暂无'));
+  return smartOptionValues(type).filter(value=>available.has(value));
 }
 function populateSmartMulti(id,values,selected,formatter){
   const el=document.getElementById(id);if(!el)return;
@@ -1666,12 +1675,12 @@ const v4FilterConfig={
   competition:{months:{menu:'v4MenuCompetitionMonths',summary:'v4CompetitionMonthsSummary',select:'compSmartMonthMulti',title:'全部月份'},subcats:{menu:'v4MenuCompetitionSubcats',summary:'v4CompetitionSubcatsSummary',select:'compSmartSubcatMulti',title:'全部小类'},brands:{menu:'v4MenuCompetitionBrands',summary:'v4CompetitionBrandsSummary',select:'compSmartBrandMulti',title:'全部品牌'}}
 };
 function v4State(scope){return scope==='overview'?smartState:compSmartState}
-function v4FilterValues(type){return type==='months'?ALL_MONTHS:type==='subcats'?smartOptionValues('subcats'):smartOptionValues('brands')}
+function v4FilterValues(type,scope='overview'){return type==='months'?ALL_MONTHS:type==='subcats'?v40ScopedOptionValues('subcats',scope):v40ScopedOptionValues('brands',scope)}
 function v4FilterLabel(type,value){return type==='months'?smartMonthLabel(value):value}
 function renderV4Menus(scope){
   const state=v4State(scope),config=v4FilterConfig[scope];
   Object.entries(config).forEach(([type,meta])=>{
-    const menu=document.getElementById(meta.menu),values=v4FilterValues(type);if(!menu)return;
+    const menu=document.getElementById(meta.menu),values=v4FilterValues(type,scope);if(!menu)return;
     state[type]=state[type].filter(v=>values.includes(v));
     menu.innerHTML=values.length?values.map(v=>`<label class="v4-option"><input type="checkbox" data-v4-scope="${scope}" data-v4-type="${type}" data-v4-value="${escapeHtml(v)}" ${state[type].includes(v)?'checked':''}><span>${escapeHtml(v4FilterLabel(type,v))}</span></label>`).join(''):'<div class="v4-menu-empty">暂无可选项</div>';
     menu.querySelectorAll('input[data-v4-value]').forEach(input=>input.addEventListener('change',()=>updateV4Selection(scope,type,input.dataset.v4Value,input.checked)));
@@ -1691,14 +1700,14 @@ function updateV4Selection(scope,type,value,checked){
 document.addEventListener('click',event=>{if(!event.target.closest('.v4-filter-control'))document.querySelectorAll('.v4-filter-control.open').forEach(el=>el.classList.remove('open'))});
 function populateSmartFilters(){
   populateSmartMulti('smartMonthMulti',ALL_MONTHS,smartState.months,smartMonthLabel);
-  populateSmartMulti('smartSubcatMulti',smartOptionValues('subcats'),smartState.subcats);
-  populateSmartMulti('smartBrandMulti',smartOptionValues('brands'),smartState.brands);
+  populateSmartMulti('smartSubcatMulti',v4FilterValues('subcats','overview'),smartState.subcats);
+  populateSmartMulti('smartBrandMulti',v4FilterValues('brands','overview'),smartState.brands);
   renderV4Menus('overview');
 }
 function populateSmartCompetitionFilters(){
   populateSmartMulti('compSmartMonthMulti',ALL_MONTHS,compSmartState.months,smartMonthLabel);
-  populateSmartMulti('compSmartSubcatMulti',smartOptionValues('subcats'),compSmartState.subcats);
-  populateSmartMulti('compSmartBrandMulti',smartOptionValues('brands'),compSmartState.brands);
+  populateSmartMulti('compSmartSubcatMulti',v4FilterValues('subcats','competition'),compSmartState.subcats);
+  populateSmartMulti('compSmartBrandMulti',v4FilterValues('brands','competition'),compSmartState.brands);
   renderV4Menus('competition');
 }
 function renderSmartChips(state,chipId,breadcrumbId,scope){
@@ -1727,7 +1736,7 @@ function v6SyncSmartSelects(scope){
 }
 function syncLegacyOverviewFilters(){
   const month=document.getElementById('fMonth'),sub=document.getElementById('fSubCategory'),brand=document.getElementById('fBrand');
-  if(month)month.value=smartState.months.length===1?monthKeyToLabel(smartState.months[0]):'';
+  if(month)month.value=smartState.months.length?monthKeyToLabel(smartCurrentMonth(smartState)):'';
   if(sub)sub.value=smartState.subcats.length===1?smartState.subcats[0]:'';
   if(brand)brand.value=smartState.brands.length===1?smartState.brands[0]:'';
 }
@@ -1793,7 +1802,20 @@ function renderSmartOverview(){
   makeChart('chartSmartTrend',{type:'line',data:{labels:trendRows.map(x=>smartMonthLabel(x.month)),datasets:[{label:'销量',data:trendRows.map(x=>x.sales),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.12)',fill:true,tension:.25}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{beginAtZero:true,title:{display:true,text:'销量'}}}}});
   const body=document.getElementById('smartPriorityBody');const rows=changes.items.slice().sort((a,b)=>(Math.abs(b.salesDelta)+Math.abs(b.rankDelta||0)*10)-(Math.abs(a.salesDelta)+Math.abs(a.rankDelta||0)*10)).slice(0,30);body.innerHTML=rows.length?rows.map(x=>{const asin=x.key;const link=`https://www.amazon.com/dp/${encodeURIComponent(asin)}`;const salesStatus=x.c&&!x.p?'新入榜':!x.c&&x.p?'跌出榜':x.salesDelta>0?'销量增长':x.salesDelta<0?'销量下降':'无变化';const rankStatus=x.c&&!x.p?'新入榜':!x.c&&x.p?'跌出榜':x.rankDelta>0?'BSR上升':x.rankDelta<0?'BSR下降':'无变化';return `<tr><td class="${x.salesDelta>=0?'smart-positive':'smart-negative'}">${escapeHtml(salesStatus)}</td><td class="${x.rankDelta>0?'smart-positive':x.rankDelta<0?'smart-negative':'smart-muted'}">${escapeHtml(rankStatus)}</td><td><a href="${link}" target="_blank" rel="noopener">${escapeHtml(asin)}</a></td><td>${escapeHtml(x.brand)}</td><td>${escapeHtml(x.subcat)}</td><td class="${x.salesDelta>=0?'smart-positive':'smart-negative'}">${x.c?'＋':''}${smartFmt(x.salesDelta)}</td><td class="${x.rankDelta>0?'smart-positive':x.rankDelta<0?'smart-negative':'smart-muted'}">${x.rankDelta===null?'-':(x.rankDelta>0?'＋':'')+smartFmt(x.rankDelta)}</td><td>${x.rank??'-'}</td></tr>`}).join(''):'<tr><td colspan="8" class="smart-muted">当前没有可比较的相邻月份。</td></tr>';
 }
-function applySmartFilters(){smartState.months=smartValues('smartMonthMulti');smartState.subcats=smartValues('smartSubcatMulti');smartState.brands=smartValues('smartBrandMulti');syncLegacyOverviewFilters();applyFilters()}
+function v40SyncMonthControls(months){
+  const selected=[...new Set(months)].filter(m=>ALL_MONTHS.includes(m)).sort(),current=selected.at(-1)||ALL_MONTHS.at(-1)||'',previous=(selected.length>1?selected[selected.length-2]:ALL_MONTHS[Math.max(0,ALL_MONTHS.indexOf(current)-1)])||'';
+  smartState.months=selected.slice();compSmartState.months=selected.slice();
+  const set=(id,value)=>{const el=document.getElementById(id);if(el&&value)el.value=monthKeyToLabel(value)};
+  ['overviewTop100Month','fCompMonth','fAttrMonth','fDetailMonth','fMonth'].forEach(id=>set(id,current));
+  ['fBaseMonth','fChgBaseMonth'].forEach(id=>set(id,current));['fCompareMonth','fChgCompareMonth'].forEach(id=>set(id,previous));
+  if(selected.length>=2){v19State.compareMonths=selected.slice();v19State.changeMonths=selected.slice()}else if(current&&previous){v19State.compareMonths=[previous,current];v19State.changeMonths=[previous,current]}
+  v19State.changePair=previous&&current?previous+'|'+current:'';v17AttrMonthState=selected.length?selected.slice():ALL_MONTHS.slice();
+  populateSmartMulti('smartMonthMulti',ALL_MONTHS,smartState.months,smartMonthLabel);populateSmartMulti('compSmartMonthMulti',ALL_MONTHS,compSmartState.months,smartMonthLabel);
+  populateSmartMulti('smartSubcatMulti',v4FilterValues('subcats','overview'),smartState.subcats);populateSmartMulti('smartBrandMulti',v4FilterValues('brands','overview'),smartState.brands);
+  populateSmartMulti('compSmartSubcatMulti',v4FilterValues('subcats','competition'),compSmartState.subcats);populateSmartMulti('compSmartBrandMulti',v4FilterValues('brands','competition'),compSmartState.brands);
+  renderV4Menus('overview');renderV4Menus('competition');
+}
+function applySmartFilters(){smartState.months=smartValues('smartMonthMulti');smartState.subcats=smartValues('smartSubcatMulti');smartState.brands=smartValues('smartBrandMulti');v40SyncMonthControls(smartState.months);syncLegacyOverviewFilters();applyFilters()}
 function clearSmartFilters(){smartState={months:[],subcats:[],brands:[]};v38ApplyGlobalSubcategory('')}
 function focusSmartPriority(){document.getElementById('smartPriorityCard')?.scrollIntoView({behavior:'smooth',block:'start'})}
 function renderSmartCompetition(){
@@ -1808,7 +1830,7 @@ function renderSmartCompetition(){
   const idx=ALL_MONTHS.indexOf(current),prev=idx>0?ALL_MONTHS[idx-1]:'';const currentBrand=new Map(brands.map(x=>[x.label,x]));const previousRows=smartUnique(smartFilteredRows(compSmartState,prev));const previousBrand=new Map();previousRows.forEach(d=>{const b=getBrand(d)||'未标注';const rec=previousBrand.get(b)||{sales:0,count:0};rec.sales+=smartValidSales(d,prev);rec.count++;previousBrand.set(b,rec)});const allBrands=new Set([...currentBrand.keys(),...previousBrand.keys()]);const changes=[...allBrands].map(b=>{const c=currentBrand.get(b),p=previousBrand.get(b);const salesDelta=(c?.sales||0)-(p?.sales||0),countDelta=(c?.count||0)-(p?.count||0);let type=c&&!p?'新入榜':!c&&p?'跌出榜':salesDelta>0?'销量增长':salesDelta<0?'销量下降':'变化平稳';return {b,c,p,salesDelta,countDelta,type}}).filter(x=>x.type!=='变化平稳').sort((a,b)=>Math.abs(b.salesDelta)-Math.abs(a.salesDelta)).slice(0,30);
   document.getElementById('compSmartPriorityBody').innerHTML=changes.length?changes.map(x=>`<tr><td class="${x.salesDelta>=0?'smart-positive':'smart-negative'}">${escapeHtml(x.type)}</td><td>${escapeHtml(x.b)}</td><td class="${x.salesDelta>=0?'smart-positive':'smart-negative'}">${x.salesDelta>=0?'＋':''}${smartFmt(x.salesDelta)}</td><td class="${x.countDelta>=0?'smart-positive':'smart-negative'}">${x.countDelta>=0?'＋':''}${smartFmt(x.countDelta)}</td></tr>`).join(''):'<tr><td colspan="4" class="smart-muted">当前没有可比较的相邻月份。</td></tr>';
 }
-function applySmartCompetitionFilters(){compSmartState.months=smartValues('compSmartMonthMulti');compSmartState.subcats=smartValues('compSmartSubcatMulti');compSmartState.brands=smartValues('compSmartBrandMulti');applyFilters()}
+function applySmartCompetitionFilters(){compSmartState.months=smartValues('compSmartMonthMulti');compSmartState.subcats=smartValues('compSmartSubcatMulti');compSmartState.brands=smartValues('compSmartBrandMulti');v40SyncMonthControls(compSmartState.months);applyFilters()}
 function clearSmartCompetitionFilters(){compSmartState={months:[],subcats:[],brands:[]};v6SyncSmartSelects('competition');applyFilters()}
 
 // ========== TAB 1: OVERVIEW ==========
@@ -1980,7 +2002,7 @@ function updateOverviewTable(){
     const asin=getProductKey(d),rank=safeNum(d['小类排名']);
     if(!asin||!rank||rank>100)return;
     const key=`${d['小类']||''}|${asin}`;
-    if(!byProduct.has(key))byProduct.set(key,d);
+    byProduct.set(key,byProduct.has(key)?v40PreferredRow(byProduct.get(key),d):d);
   });
   const rows=[...byProduct.values()].sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名'])||String(a['小类']||'').localeCompare(String(b['小类']||''),'zh-CN')||String(getProductKey(a)).localeCompare(String(getProductKey(b))));
   const html=rows.map(d=>{
@@ -2578,13 +2600,15 @@ function updateDetailTable(){
   if(prevMonth)ALL_DATA.filter(d=>d._dataMonth===prevMonth).forEach(d=>{prevRanks[getProductKey(d)]=safeNum(d['小类排名'])});
   const currentKeys=new Set(ALL_DATA.filter(d=>d._dataMonth===selectedMonth).map(getProductKey));
   if(dc&&dc.value==='out')data=data.filter(d=>{const id=getProductKey(d);return safeNum(d['小类排名'])>0&&!currentKeys.has(id)});
+  const shownParentSales=new Set();
   const rows=[...data].sort((a,b)=>safeNum(a['小类排名'])-safeNum(b['小类排名'])).slice(0,300).map(d=>{
     const productKey=getProductKey(d),asin=d['竞品ASIN']||productKey,rank=safeNum(d['小类排名']),prevRank=prevRanks[productKey]||0;
     const latestSales=safeNum(d.sales?.[d._dataMonth]||0);
+    const salesHtml=shownParentSales.has(productKey)?'<span class="smart-muted">同父体</span>':latestSales.toLocaleString();shownParentSales.add(productKey);
     let changeHtml='-';
     if(prevRank>0&&rank>0){const diff=prevRank-rank;if(diff>0)changeHtml=`<span style="color:#166534;font-weight:600">↑${diff}</span>`;else if(diff<0)changeHtml=`<span style="color:#be185d;font-weight:600">↓${Math.abs(diff)}</span>`;else changeHtml='<span style="color:#9ca3af">→0</span>'}
     else if(rank>0&&!prevRank)changeHtml='<span class="badge badge-new">新入榜</span>';
-    return`<tr><td><strong>${rank||'-'}</strong></td><td>${changeHtml}</td><td><a class="link-btn" href="https://www.amazon.com/dp/${encodeURIComponent(asin)}" target="_blank" rel="noopener noreferrer">${escapeHtml(asin)}</a></td><td>${escapeHtml(getBrand(d))}</td><td>${escapeHtml(d['小类']||'-')}</td><td>$${escapeHtml(d['Buybox价格']??'-')}</td><td>${escapeHtml(d['评分']??'-')}</td><td>${safeNum(d['父体Rating数']).toLocaleString()}</td><td>${latestSales.toLocaleString()}</td><td>${formatDateShort(d['上架日期'])}</td><td>${d._monthsOnList||'-'}</td></tr>`;
+    return`<tr><td><strong>${rank||'-'}</strong></td><td>${changeHtml}</td><td><a class="link-btn" href="https://www.amazon.com/dp/${encodeURIComponent(asin)}" target="_blank" rel="noopener noreferrer">${escapeHtml(asin)}</a></td><td>${escapeHtml(getBrand(d))}</td><td>${escapeHtml(d['小类']||'-')}</td><td>$${escapeHtml(d['Buybox价格']??'-')}</td><td>${escapeHtml(d['评分']??'-')}</td><td>${safeNum(d['父体Rating数']).toLocaleString()}</td><td>${salesHtml}</td><td>${formatDateShort(d['上架日期'])}</td><td>${d._monthsOnList||'-'}</td></tr>`;
   });
   document.getElementById('detailCount').textContent=rows.length;
   document.getElementById('detailBody').innerHTML=rows.join('')||'<tr><td colspan="11" style="text-align:center;color:#999;padding:20px">暂无数据</td></tr>';
@@ -2803,7 +2827,7 @@ function v8Field(row,key){return row?.[V8_KEYS[key]]??''}
 function v8Number(value){if(v8IsExact92(value))return 0;const n=Number(String(value??'').replace(/,/g,''));return Number.isFinite(n)?n:0}
 function v8RankBucket(rank){const n=v8Number(rank);return n>0&&n<=100?V8_RANGES[Math.floor((n-1)/10)]:null}
 function v8MonthRows(data,month){return data.filter(row=>row._dataMonth===month&&getProductKey(row))}
-function v8UniqueMap(rows){const map=new Map();rows.forEach(row=>{const key=getProductKey(row);if(key&&!map.has(key))map.set(key,row)});return map}
+function v8UniqueMap(rows){return new Map(smartUnique(rows).map(row=>[getProductKey(row),row]).filter(([key])=>key))}
 
 function smartValidSales(row,month){const raw=smartRawSales(row,month);if(v8IsExact92(raw))return 0;const n=v8Number(raw);return n>0?n:0}
 const v7QualityReport=v7OriginalQualityReport;
@@ -2903,6 +2927,7 @@ const v7UpdateAttrCharts=v7OriginalUpdateAttrCharts;
 function updateAttrCharts(){
   v7UpdateAttrCharts();
   const month=monthStrToKey(document.getElementById('fAttrMonth')?.value||'')||ALL_MONTHS[ALL_MONTHS.length-1];let data=smartUnique(ALL_DATA.filter(row=>row._dataMonth===month));const sub=document.getElementById('fAttrSubCat');if(sub?.value)data=data.filter(row=>v8Field(row,'subcat')===sub.value);const brand=document.getElementById('fAttrBrand');if(brand?.value)data=data.filter(row=>getBrand(row).toLowerCase()===brand.value.toLowerCase());
+  const styleKnown=data.filter(row=>v11AttrValue(row,'style')).length,styleHint=document.getElementById('v40StyleCoverageHint');if(styleHint)styleHint.textContent=`风格数据覆盖：${styleKnown}/${data.length} 个父体快照（${data.length?Math.round(styleKnown/data.length*100):0}%）；未标注风格不参与风格维度汇总。`;
   v8RenderAttributeRankHeatmap(data,V8_KEYS.style,'attrStyleHeatmapContainer');v8RenderAttributeRankHeatmap(data,V8_KEYS.fabric,'attrFabricHeatmapContainer');v8RenderPriceRankHeatmap(data,'priceRankHeatmapContainer');
 }
 
@@ -3498,7 +3523,7 @@ function v21SetV4Options(scope,type,action){
 const v21BaseRenderV4Menus=renderV4Menus;
 renderV4Menus=function(scope){
   v21BaseRenderV4Menus(scope);const config=v4FilterConfig[scope],state=v4State(scope);
-  ['subcats','brands'].forEach(type=>{const menu=document.getElementById(config[type].menu),values=type==='brands'?v20BrandEntries(v20ScopedRows(scope)).map(item=>item.label):v4FilterValues(type);if(!menu||!values.length)return;const selected=(state[type]||[]).filter(value=>values.includes(value)),allSelected=selected.length===values.length;menu.insertAdjacentHTML('afterbegin',`<div class="v21-select-actions"><button type="button" onclick="v21SetV4Options('${scope}','${type}','all')" ${allSelected?'disabled':''}>全选</button><button type="button" onclick="v21SetV4Options('${scope}','${type}','invert')">反选</button></div>`)});
+  ['subcats','brands'].forEach(type=>{const menu=document.getElementById(config[type].menu),values=type==='brands'?v20BrandEntries(v20ScopedRows(scope)).map(item=>item.label):v4FilterValues(type,scope);if(!menu||!values.length)return;const selected=(state[type]||[]).filter(value=>values.includes(value)),allSelected=selected.length===values.length;menu.insertAdjacentHTML('afterbegin',`<div class="v21-select-actions"><button type="button" onclick="v21SetV4Options('${scope}','${type}','all')" ${allSelected?'disabled':''}>全选</button><button type="button" onclick="v21SetV4Options('${scope}','${type}','invert')">反选</button></div>`)});
 };
 const v21Style=document.createElement('style');v21Style.textContent='.v21-select-actions{display:flex;gap:7px;padding:4px 5px 8px;margin:0 0 4px;border-bottom:1px solid #edf0f6;position:sticky;top:-7px;background:#fff;z-index:2}.v21-select-actions button{border:1px solid #d7def0;border-radius:6px;background:#f7f9ff;color:#5064c8;font-size:11px;line-height:24px;padding:0 10px;cursor:pointer}.v21-select-actions button:hover:not(:disabled){background:#edf1ff;border-color:#8797e5}.v21-select-actions button:disabled{opacity:.45;cursor:default}';document.head.appendChild(v21Style);
 
@@ -3961,8 +3986,9 @@ applyFilters=function(){const result=v32BaseApplyFilters();v32RenderTrendExplore
 // ========== V33: 趋势探索器组合筛选 ==========
 const v33TrendState={brands:[],styles:[],fabrics:[]};
 const v33TrendFilterMeta={brands:{label:'品牌',menu:'trendExplorerBrandsMenu',summary:'trendExplorerBrandsSummary',value:row=>getBrand(row)},styles:{label:'风格',menu:'trendExplorerStylesMenu',summary:'trendExplorerStylesSummary',value:row=>v11AttrValue(row,'style')},fabrics:{label:'面料',menu:'trendExplorerFabricsMenu',summary:'trendExplorerFabricsSummary',value:row=>v11AttrValue(row,'fabric')}};
-function v33TrendMatches(row){return Object.entries(v33TrendFilterMeta).every(([key,meta])=>!v33TrendState[key].length||v33TrendState[key].includes(meta.value(row)))}
-function v33TrendOptions(key){const meta=v33TrendFilterMeta[key],seen=new Map();ALL_DATA.forEach((row,index)=>{const value=String(meta.value(row)||'').trim();if(!value)return;const id=(row._dataMonth||'')+'|'+(getProductKey(row)||index);if(!seen.has(id))seen.set(id,value)});const counts=new Map();seen.forEach(value=>counts.set(value,(counts.get(value)||0)+1));return [...counts].map(([value,count])=>({value,count})).sort((a,b)=>key==='brands'?b.count-a.count||a.value.localeCompare(b.value,'en',{sensitivity:'base'}):a.value.localeCompare(b.value,'zh-CN'))}
+function v40GlobalSubcategoryMatches(row){const value=document.getElementById('globalSubcatFilter')?.value;return !value||row['小类']===value}
+function v33TrendMatches(row){return v40GlobalSubcategoryMatches(row)&&Object.entries(v33TrendFilterMeta).every(([key,meta])=>!v33TrendState[key].length||v33TrendState[key].includes(meta.value(row)))}
+function v33TrendOptions(key){const meta=v33TrendFilterMeta[key],seen=new Map();ALL_DATA.filter(v40GlobalSubcategoryMatches).forEach((row,index)=>{const value=String(meta.value(row)||'').trim();if(!value)return;const id=(row._dataMonth||'')+'|'+(getProductKey(row)||index);if(!seen.has(id))seen.set(id,value)});const counts=new Map();seen.forEach(value=>counts.set(value,(counts.get(value)||0)+1));return [...counts].map(([value,count])=>({value,count})).sort((a,b)=>key==='brands'?b.count-a.count||a.value.localeCompare(b.value,'en',{sensitivity:'base'}):a.value.localeCompare(b.value,'zh-CN'))}
 function v33RenderTrendFilters(){Object.entries(v33TrendFilterMeta).forEach(([key,meta])=>{const menu=document.getElementById(meta.menu),summary=document.getElementById(meta.summary),options=v33TrendOptions(key);if(!menu||!summary)return;v33TrendState[key]=v33TrendState[key].filter(value=>options.some(option=>option.value===value));const selected=v33TrendState[key],all=selected.length===options.length;summary.innerHTML=!selected.length?'全部'+meta.label:selected.length===1?escapeHtml(selected[0]):`已选 <span class="v4-chip-count">${selected.length}</span> 项`;menu.innerHTML=options.length?`<input class="v28-v4-search" type="search" placeholder="搜索${meta.label}…"><div class="v21-select-actions"><button type="button" data-v33-action="all" ${all?'disabled':''}>全选</button><button type="button" data-v33-action="invert">反选</button></div>`+options.map(option=>`<label class="v4-option"><input type="checkbox" value="${escapeHtml(option.value)}" ${selected.includes(option.value)?'checked':''}><span>${escapeHtml(option.value)}${key==='brands'?` <small class="v20-brand-count">${option.count}</small>`:''}</span></label>`).join(''):'<div class="v4-menu-empty">暂无可选项</div>';menu.querySelector('.v28-v4-search')?.addEventListener('input',event=>{const q=event.target.value.trim().toLowerCase();menu.querySelectorAll('.v4-option').forEach(option=>option.hidden=!!q&&!option.textContent.toLowerCase().includes(q))});menu.querySelectorAll('input[type="checkbox"]').forEach(input=>input.addEventListener('change',()=>{v33TrendState[key]=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(item=>item.value);v33RenderTrendFilters();v32RenderTrendExplorer()}));menu.querySelectorAll('[data-v33-action]').forEach(button=>button.addEventListener('click',()=>{v33TrendState[key]=button.dataset.v33Action==='all'?options.map(option=>option.value):options.map(option=>option.value).filter(value=>!selected.includes(value));v33RenderTrendFilters();v32RenderTrendExplorer()}))})}
 function v33ToggleTrendFilter(key){const menu=document.getElementById(v33TrendFilterMeta[key]?.menu),control=menu?.closest('.v4-filter-control');document.querySelectorAll('.v4-filter-control.open').forEach(item=>{if(item!==control)item.classList.remove('open')});control?.classList.toggle('open')}
 function v33ClearTrendFilters(){Object.keys(v33TrendState).forEach(key=>v33TrendState[key]=[]);v33RenderTrendFilters();v32RenderTrendExplorer()}
