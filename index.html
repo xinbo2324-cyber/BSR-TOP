@@ -808,6 +808,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
       <div class="filter-group"><label>品牌</label><select id="fDetailBrand"><option value="">全部</option></select></div>
       <div class="filter-group"><label>排名区间</label><select id="fDetailRank"><option value="">全部</option><option value="1-10">1-10</option><option value="11-20">11-20</option><option value="21-50">21-50</option><option value="51-100">51-100</option></select></div>
       <div class="filter-group"><label>变化方向</label><select id="fDetailChange"><option value="">全部</option><option value="up">上升</option><option value="down">下降</option><option value="new">新入榜</option><option value="out">跌出</option></select></div>
+      <div class="filter-group"><label>关键词</label><input id="fDetailKeyword" type="search" placeholder="ASIN / 品牌 / 标题"></div>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="applyDetailFilters()">筛选</button>
         <button class="btn btn-reset" onclick="resetDetailFilters()">重置</button>
@@ -891,6 +892,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
   </div>
   <div class="table-card" style="margin-top:16px">
     <table><thead><tr><th style="width:110px">版本</th><th style="width:120px">日期</th><th>新增功能</th><th>修复 / 调整</th><th style="width:120px">状态</th></tr></thead><tbody>
+      <tr><td><strong>v40 修复</strong></td><td>2026-09-22</td><td>修复趋势探索器清除组合筛选、BSR明细关键词筛选与明细表头状态。</td><td>清除趋势筛选后强制保持空选；明细支持 ASIN、父体、品牌、标题、小类、风格、面料搜索；静态与动态明细表头使用不同标识。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v40 修复</strong></td><td>2026-09-21</td><td>修复月份切换后各模块状态不一致及筛选器残留无效选项。</td><td>总览月份统一同步总览明细、TOP100、属性、竞争与对比模块；品牌和小类选项按当前月份收窄，失效选择自动清除。</td><td><span class="tag tag-green">正式发布</span></td></tr>
       <tr><td><strong>v40 修复</strong></td><td>2026-09-20</td><td>统一父体统计、全局类目与明细销量口径。</td><td>同月父体按最佳小类排名稳定去重；趋势探索器继承全局类目；重置同步清空全局类目；子体明细只显示一次父体月销，并提示风格覆盖率。</td><td><span class="tag tag-blue">本地待发布</span></td></tr>
       <tr><td><strong>v40</strong></td><td>2026-09-20</td><td>更新桌面《月度品牌调研_汇总_归类版_卖家精灵补充_全量》的 BSR榜单汇总子表数据。</td><td>仅内置该子表的 983 条有效记录；源表“大类”映射为看板品类，保留现有筛选与图表。</td><td><span class="tag tag-green">正式发布</span></td></tr>
@@ -978,7 +980,7 @@ tr:hover td{background:rgba(102,126,234,.02)}
             <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">价格</th>
             <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">评分</th>
             <th style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">评论数</th>
-            <th id="rankingDetailLastHeader" style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">数据时间</th>
+            <th id="rankingDetailStaticLastHeader" style="padding:8px;text-align:left;border-bottom:2px solid var(--border)">数据时间</th>
           </tr>
         </thead>
         <tbody id="rankingDetailBody"></tbody>
@@ -1629,7 +1631,7 @@ function resetCompareFilters(){['fCompareSubCat','fCompareBrand','fHeatmapStyle'
 function resetChangeFilters(){['fChgSubCat','fChgBrand','fChgThreshold'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const latest=ALL_MONTHS[ALL_MONTHS.length-1]||'',previous=ALL_MONTHS[ALL_MONTHS.length-2]||'';const base=document.getElementById('fChgBaseMonth'),compare=document.getElementById('fChgCompareMonth');if(base)base.value=monthKeyToLabel(latest);if(compare)compare.value=monthKeyToLabel(previous);v38ApplyGlobalSubcategory('')}
 function resetCompFilters(){document.getElementById('fCompMonth').value='';document.getElementById('fCompSubCat').value='';v38ApplyGlobalSubcategory('')}
 function resetAttrFilters(){['fAttrMonth','fAttrSubCat','fAttrBrand'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});v38ApplyGlobalSubcategory('')}
-function resetDetailFilters(){['fDetailMonth','fDetailSubCat','fDetailBrand','fDetailRank','fDetailChange'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});v38ApplyGlobalSubcategory('')}
+function resetDetailFilters(){['fDetailMonth','fDetailSubCat','fDetailBrand','fDetailRank','fDetailChange','fDetailKeyword'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});v38ApplyGlobalSubcategory('')}
 function applyCompareFilters(){applyFilters()}
 function applyChangeFilters(){applyFilters()}
 function applyCompFilters(){applyFilters()}
@@ -2596,6 +2598,8 @@ function updateDetailTable(){
   const db=document.getElementById('fDetailBrand');if(db&&db.value){const lc=db.value.toLowerCase();data=data.filter(d=>getBrand(d).toLowerCase()===lc)}
   const dr=document.getElementById('fDetailRank');
   if(dr&&dr.value){const[lo,hi]=dr.value.split('-').map(Number);data=data.filter(d=>{const r=safeNum(d['小类排名']);return r>=lo&&r<=hi})}
+  const keyword=String(document.getElementById('fDetailKeyword')?.value||'').trim().toLowerCase();
+  if(keyword)data=data.filter(d=>[d['竞品ASIN'],d['父ASIN'],getBrand(d),d['标题'],d['小类'],d['风格'],d['面料']].join(' ').toLowerCase().includes(keyword));
   const prevRanks={};
   if(prevMonth)ALL_DATA.filter(d=>d._dataMonth===prevMonth).forEach(d=>{prevRanks[getProductKey(d)]=safeNum(d['小类排名'])});
   const currentKeys=new Set(ALL_DATA.filter(d=>d._dataMonth===selectedMonth).map(getProductKey));
@@ -3991,7 +3995,7 @@ function v33TrendMatches(row){return v40GlobalSubcategoryMatches(row)&&Object.en
 function v33TrendOptions(key){const meta=v33TrendFilterMeta[key],seen=new Map();ALL_DATA.filter(v40GlobalSubcategoryMatches).forEach((row,index)=>{const value=String(meta.value(row)||'').trim();if(!value)return;const id=(row._dataMonth||'')+'|'+(getProductKey(row)||index);if(!seen.has(id))seen.set(id,value)});const counts=new Map();seen.forEach(value=>counts.set(value,(counts.get(value)||0)+1));return [...counts].map(([value,count])=>({value,count})).sort((a,b)=>key==='brands'?b.count-a.count||a.value.localeCompare(b.value,'en',{sensitivity:'base'}):a.value.localeCompare(b.value,'zh-CN'))}
 function v33RenderTrendFilters(){Object.entries(v33TrendFilterMeta).forEach(([key,meta])=>{const menu=document.getElementById(meta.menu),summary=document.getElementById(meta.summary),options=v33TrendOptions(key);if(!menu||!summary)return;v33TrendState[key]=v33TrendState[key].filter(value=>options.some(option=>option.value===value));const selected=v33TrendState[key],all=selected.length===options.length;summary.innerHTML=!selected.length?'全部'+meta.label:selected.length===1?escapeHtml(selected[0]):`已选 <span class="v4-chip-count">${selected.length}</span> 项`;menu.innerHTML=options.length?`<input class="v28-v4-search" type="search" placeholder="搜索${meta.label}…"><div class="v21-select-actions"><button type="button" data-v33-action="all" ${all?'disabled':''}>全选</button><button type="button" data-v33-action="invert">反选</button></div>`+options.map(option=>`<label class="v4-option"><input type="checkbox" value="${escapeHtml(option.value)}" ${selected.includes(option.value)?'checked':''}><span>${escapeHtml(option.value)}${key==='brands'?` <small class="v20-brand-count">${option.count}</small>`:''}</span></label>`).join(''):'<div class="v4-menu-empty">暂无可选项</div>';menu.querySelector('.v28-v4-search')?.addEventListener('input',event=>{const q=event.target.value.trim().toLowerCase();menu.querySelectorAll('.v4-option').forEach(option=>option.hidden=!!q&&!option.textContent.toLowerCase().includes(q))});menu.querySelectorAll('input[type="checkbox"]').forEach(input=>input.addEventListener('change',()=>{v33TrendState[key]=[...menu.querySelectorAll('input[type="checkbox"]:checked')].map(item=>item.value);v33RenderTrendFilters();v32RenderTrendExplorer()}));menu.querySelectorAll('[data-v33-action]').forEach(button=>button.addEventListener('click',()=>{v33TrendState[key]=button.dataset.v33Action==='all'?options.map(option=>option.value):options.map(option=>option.value).filter(value=>!selected.includes(value));v33RenderTrendFilters();v32RenderTrendExplorer()}))})}
 function v33ToggleTrendFilter(key){const menu=document.getElementById(v33TrendFilterMeta[key]?.menu),control=menu?.closest('.v4-filter-control');document.querySelectorAll('.v4-filter-control.open').forEach(item=>{if(item!==control)item.classList.remove('open')});control?.classList.toggle('open')}
-function v33ClearTrendFilters(){Object.keys(v33TrendState).forEach(key=>v33TrendState[key]=[]);v33RenderTrendFilters();v32RenderTrendExplorer()}
+function v33ClearTrendFilters(){Object.keys(v33TrendState).forEach(key=>v33TrendState[key]=[]);v33RenderTrendFilters();v32RenderTrendExplorer();setTimeout(()=>{Object.keys(v33TrendState).forEach(key=>v33TrendState[key]=[]);v33RenderTrendFilters();v32RenderTrendExplorer()},0)}
 const v33BaseRebuildFilterOptions=rebuildFilterOptions;
 rebuildFilterOptions=function(){const result=v33BaseRebuildFilterOptions();v33RenderTrendFilters();return result};
 
